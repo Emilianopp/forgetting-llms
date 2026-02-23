@@ -59,7 +59,7 @@ python3 -m verl.trainer.main_ppo \
     data.max_response_length=2048 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
-    +data.custom_cls=verl.utils.dataset.rl_dataset.RLHFDataset \
+    ++data.custom_cls=verl.utils.dataset.rl_dataset.RLHFDataset \
     actor_rollout_ref.model.path=Qwen/Qwen3-1.7B \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.model.use_remove_padding=True \
