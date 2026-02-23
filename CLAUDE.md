@@ -17,12 +17,18 @@ ssh mila
 ```
 SSH config alias `mila` resolves to `login.server.mila.quebec` (port 2222, user `emiliano.penaloza`).
 
-### Step 2: Navigate to project
+### Step 2: Clone repo (first time only)
+```bash
+cd $HOME
+git clone https://github.com/Emilianopp/forgetting-llms.git
+```
+
+### Step 3: Navigate to project
 ```bash
 cd $HOME/forgetting-llms
 ```
 
-### Step 3: Activate environment
+### Step 4: Activate environment
 ```bash
 source $HOME/envs/forgetting/bin/activate
 ```
@@ -35,7 +41,8 @@ source $HOME/envs/forgetting/bin/activate
 - Check logs: `tail -f slurm_logs/<job_id>_*.out`
 
 ### Syncing code
-The repo should be cloned on Mila at `$HOME/forgetting-llms`. Push changes via git:
+Repo: https://github.com/Emilianopp/forgetting-llms (private)
+
 ```bash
 # Local: push to remote
 git push origin main
