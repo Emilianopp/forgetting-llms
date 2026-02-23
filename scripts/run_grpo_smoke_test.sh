@@ -12,7 +12,7 @@
 #SBATCH --job-name=grpo-smoke-test
 #SBATCH --partition=main
 #SBATCH --gres=gpu:a100l:2
-#SBATCH --mem=96G
+#SBATCH --mem=64G
 #SBATCH --cpus-per-task=8
 #SBATCH --time=4:00:00
 #SBATCH --output=slurm_logs/%j_%x.out
