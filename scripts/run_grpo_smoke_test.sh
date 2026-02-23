@@ -59,7 +59,6 @@ python3 -m verl.trainer.main_ppo \
     data.max_response_length=2048 \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
-    ++data.custom_cls=verl.utils.dataset.rl_dataset.RLHFDataset \
     actor_rollout_ref.model.path=Qwen/Qwen3-1.7B \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.model.use_remove_padding=True \
@@ -78,7 +77,6 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.n=4 \
     actor_rollout_ref.rollout.response_length=2048 \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=8 \
-    actor_rollout_ref.rollout.rollout_batch_size=32 \
     actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=8 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     algorithm.use_kl_in_reward=False \
