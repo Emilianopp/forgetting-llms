@@ -4,6 +4,10 @@ For each question in the training set, generates N candidate solutions from a
 teacher model, verifies correctness using the math reward function, and saves
 the first correct solution as the training target.
 
+Supports resumption: processes questions in chunks and appends results to a
+checkpoint file after each chunk. On restart, already-completed questions are
+skipped automatically.
+
 Usage:
     python src/data/generate_teacher_solutions.py \
         --model Qwen/Qwen3-32B \
@@ -14,6 +18,7 @@ Usage:
 
 import argparse
 import os
+import re
 import sys
 
 import pandas as pd
@@ -32,11 +37,9 @@ def load_questions(dataset_name: str) -> list[dict]:
     if dataset_name == "gsm8k":
         dataset = load_dataset("openai/gsm8k", "main", split="train")
         questions = []
-        for example in dataset:
+        for i, example in enumerate(dataset):
             question = example["question"]
             raw_answer = example["answer"]
-            # Extract numeric answer for verification
-            import re
             match = re.search(r"####\s*(-?[\d,]+\.?\d*)", raw_answer)
             ground_truth = match.group(1).replace(",", "").strip() if match else ""
 
@@ -45,6 +48,7 @@ def load_questions(dataset_name: str) -> list[dict]:
                 "Please reason step by step, and put your final answer within \\boxed{}."
             )
             questions.append({
+                "idx": i,
                 "prompt": prompt,
                 "ground_truth": ground_truth,
                 "original_question": question,
@@ -54,10 +58,10 @@ def load_questions(dataset_name: str) -> list[dict]:
     elif dataset_name == "math":
         dataset = load_dataset("hendrycks/competition_math", split="train")
         questions = []
+        idx = 0
         for example in dataset:
             problem = example["problem"]
             solution_text = example["solution"]
-            import re
             pattern = r"\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}"
             matches = re.findall(pattern, solution_text)
             ground_truth = matches[-1].strip() if matches else ""
@@ -69,120 +73,104 @@ def load_questions(dataset_name: str) -> list[dict]:
                 "Please reason step by step, and put your final answer within \\boxed{}."
             )
             questions.append({
+                "idx": idx,
                 "prompt": prompt,
                 "ground_truth": ground_truth,
                 "original_question": problem,
             })
+            idx += 1
         return questions
 
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")
 
 
-def generate_solutions(
-    model_name: str,
+def load_checkpoint(checkpoint_path: str) -> set[int]:
+    """Load completed question indices from checkpoint file."""
+    if not os.path.exists(checkpoint_path):
+        return set()
+    df = pd.read_parquet(checkpoint_path)
+    completed = set(df["idx"].tolist())
+    print(f"Resuming: {len(completed)} questions already completed")
+    return completed
+
+
+def append_to_checkpoint(results: list[dict], checkpoint_path: str):
+    """Append new results to the checkpoint parquet file."""
+    new_df = pd.DataFrame(results)
+    if os.path.exists(checkpoint_path):
+        existing_df = pd.read_parquet(checkpoint_path)
+        combined = pd.concat([existing_df, new_df], ignore_index=True)
+    else:
+        combined = new_df
+    combined.to_parquet(checkpoint_path)
+
+
+def generate_and_filter_chunk(
+    llm: LLM,
+    sampling_params: SamplingParams,
     questions: list[dict],
-    n_samples: int,
-    tensor_parallel_size: int,
-    max_tokens: int,
-) -> list[list[str]]:
-    """Generate N candidate solutions per question using vLLM."""
-    llm = LLM(
-        model=model_name,
-        tensor_parallel_size=tensor_parallel_size,
-        gpu_memory_utilization=0.90,
-        trust_remote_code=True,
-    )
-
-    sampling_params = SamplingParams(
-        n=n_samples,
-        temperature=0.7,
-        top_p=0.9,
-        max_tokens=max_tokens,
-    )
-
-    # Build conversations in chat format
+    dataset_name: str,
+) -> list[dict]:
+    """Generate solutions for a chunk of questions and filter correct ones."""
     conversations = [
         [{"role": "user", "content": q["prompt"]}] for q in questions
     ]
 
-    print(f"Generating {n_samples} solutions for {len(questions)} questions...")
     outputs = llm.chat(conversations, sampling_params)
 
-    # Extract text from each output
-    all_solutions = []
-    for output in outputs:
-        solutions = [o.text for o in output.outputs]
-        all_solutions.append(solutions)
-
-    return all_solutions
-
-
-def filter_correct_solutions(
-    questions: list[dict],
-    all_solutions: list[list[str]],
-    dataset_name: str,
-) -> tuple[list[dict], int, int]:
-    """Filter to keep only the first correct solution per question.
-
-    Returns:
-        results: List of dicts with question, answer, ground_truth for correct ones.
-        n_with_correct: Number of questions with at least one correct solution.
-        n_total: Total number of questions.
-    """
     results = []
-    n_with_correct = 0
-
-    for question, solutions in zip(questions, all_solutions):
+    n_correct = 0
+    for question, output in zip(questions, outputs):
         gt = question["ground_truth"]
         correct_solution = None
 
-        for solution in solutions:
-            score = compute_score(dataset_name, solution, gt)
-            if score > 0.5:
-                correct_solution = solution
+        for o in output.outputs:
+            if compute_score(dataset_name, o.text, gt) > 0.5:
+                correct_solution = o.text
                 break
 
         if correct_solution is not None:
-            n_with_correct += 1
+            n_correct += 1
             results.append({
+                "idx": question["idx"],
+                "data_source": dataset_name,
                 "question": question["prompt"],
                 "answer": correct_solution,
                 "ground_truth": gt,
             })
 
-    return results, n_with_correct, len(questions)
+    return results, n_correct
 
 
-def save_as_sft_parquet(results: list[dict], output_dir: str, dataset_name: str):
-    """Save results in VeRL SFT parquet format."""
-    os.makedirs(output_dir, exist_ok=True)
+def finalize_output(checkpoint_path: str, output_dir: str, dataset_name: str):
+    """Convert checkpoint to final SFT parquet format."""
+    df = pd.read_parquet(checkpoint_path)
 
+    # Build SFT format
     records = []
-    for r in results:
+    for _, row in df.iterrows():
         records.append({
-            "data_source": dataset_name,
+            "data_source": row["data_source"],
             "extra_info": {
-                "question": r["question"],
-                "answer": r["answer"],
+                "question": row["question"],
+                "answer": row["answer"],
                 "split": "train",
             },
         })
 
-    df = pd.DataFrame(records)
+    train_df = pd.DataFrame(records)
     train_path = os.path.join(output_dir, "train.parquet")
-    df.to_parquet(train_path)
-    print(f"Saved {len(df)} training examples to {train_path}")
+    train_df.to_parquet(train_path)
+    print(f"Saved {len(train_df)} training examples to {train_path}")
 
-    # Also create a test split from the original test set (GT format for validation loss)
+    # Create test split from original test set
     if dataset_name == "gsm8k":
         test_dataset = load_dataset("openai/gsm8k", "main", split="test")
         test_records = []
-        import re
         for example in test_dataset:
             question = example["question"]
             raw_answer = example["answer"]
-            # Reformat answer with \boxed{}
             match = re.search(r"####\s*(-?[\d,]+\.?\d*)", raw_answer)
             numeric_answer = match.group(1).replace(",", "").strip() if match else ""
             text = re.sub(r"\n?####\s*(-?[\d,]+\.?\d*)\s*$", "", raw_answer).strip()
@@ -218,6 +206,8 @@ def main():
                         help="vLLM tensor parallel size")
     parser.add_argument("--max_tokens", type=int, default=2048,
                         help="Maximum tokens per generated solution")
+    parser.add_argument("--chunk_size", type=int, default=500,
+                        help="Number of questions per chunk (saves after each chunk)")
     parser.add_argument("--output_dir", type=str, default=None,
                         help="Output directory (default: ~/scratch/forgetting-llms/data/<dataset>_sf_sft)")
     args = parser.parse_args()
@@ -226,30 +216,71 @@ def main():
         args.output_dir = os.path.expanduser(
             f"~/scratch/forgetting-llms/data/{args.dataset}_sf_sft"
         )
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    checkpoint_path = os.path.join(args.output_dir, "checkpoint.parquet")
 
     # Load questions
     print(f"Loading {args.dataset} questions...")
     questions = load_questions(args.dataset)
     print(f"Loaded {len(questions)} questions")
 
-    # Generate solutions
-    all_solutions = generate_solutions(
-        model_name=args.model,
-        questions=questions,
-        n_samples=args.n_samples,
+    # Check for existing progress
+    completed_idxs = load_checkpoint(checkpoint_path)
+    remaining = [q for q in questions if q["idx"] not in completed_idxs]
+    print(f"Remaining: {len(remaining)} questions to process")
+
+    if not remaining:
+        print("All questions already processed! Finalizing output...")
+        finalize_output(checkpoint_path, args.output_dir, args.dataset)
+        print("Done!")
+        return
+
+    # Initialize model
+    print(f"Loading model {args.model}...")
+    llm = LLM(
+        model=args.model,
         tensor_parallel_size=args.tensor_parallel_size,
+        gpu_memory_utilization=0.90,
+        trust_remote_code=True,
+    )
+
+    sampling_params = SamplingParams(
+        n=args.n_samples,
+        temperature=0.7,
+        top_p=0.9,
         max_tokens=args.max_tokens,
     )
 
-    # Filter correct solutions
-    print("Verifying solutions...")
-    results, n_correct, n_total = filter_correct_solutions(
-        questions, all_solutions, args.dataset
-    )
-    print(f"Correct: {n_correct}/{n_total} ({100*n_correct/n_total:.1f}%)")
+    # Process in chunks
+    total_correct = len(completed_idxs)
+    total_processed = len(completed_idxs)
 
-    # Save
-    save_as_sft_parquet(results, args.output_dir, args.dataset)
+    for chunk_start in range(0, len(remaining), args.chunk_size):
+        chunk = remaining[chunk_start:chunk_start + args.chunk_size]
+        chunk_num = chunk_start // args.chunk_size + 1
+        n_chunks = (len(remaining) + args.chunk_size - 1) // args.chunk_size
+
+        print(f"\n--- Chunk {chunk_num}/{n_chunks}: {len(chunk)} questions ---")
+
+        results, n_correct = generate_and_filter_chunk(
+            llm, sampling_params, chunk, args.dataset
+        )
+
+        # Save immediately
+        if results:
+            append_to_checkpoint(results, checkpoint_path)
+
+        total_correct += n_correct
+        total_processed += len(chunk)
+        print(f"Chunk {chunk_num}: {n_correct}/{len(chunk)} correct "
+              f"(running total: {total_correct}/{total_processed}, "
+              f"{100*total_correct/total_processed:.1f}%)")
+
+    # Finalize
+    print(f"\nAll chunks complete. Total: {total_correct}/{total_processed} "
+          f"({100*total_correct/total_processed:.1f}%)")
+    finalize_output(checkpoint_path, args.output_dir, args.dataset)
     print("Done!")
 
 
