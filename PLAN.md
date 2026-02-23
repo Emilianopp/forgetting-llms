@@ -7,9 +7,9 @@
 - **Job scheduler**: Slurm
 - **Job config**: `--partition=main --gres=gpu:a100l:2 --time=8:00:00 --mem=48G`
 - **Tracking**: Weights & Biases
-- **Storage**: `$SCRATCH` for datasets/checkpoints, `$HOME` for code
-- **RL framework**: GEM + Oat (vLLM + DeepSpeed, native GRPO support)
-- **SFT/DPO framework**: TRL (`SFTTrainer`, `DPOTrainer`)
+- **Storage**: `~/scratch` for datasets/checkpoints, `$HOME` for code
+- **RL framework**: VeRL (GRPO via `verl.trainer.main_ppo`) + GEM environments for rewards
+- **SFT framework**: VeRL `fsdp_sft_trainer` (torchrun)
 
 ## Model Family: Qwen3
 
@@ -24,17 +24,22 @@ All experiments use the **Qwen3** family. GEM has native Qwen3 prompt templates 
 | Teacher (same-family) | Qwen3-32B | `Qwen/Qwen3-32B` |
 | Teacher (cross-family) | Llama-3.1-70B-Instruct | `meta-llama/Llama-3.1-70B-Instruct` |
 
+## GEM Environments (Training Domains)
+
+| Domain | Training env_id | Eval env_id | Reward |
+|--------|----------------|-------------|--------|
+| Math | `math:GSM8K` | `eval:MATH500` | Binary (boxed answer match) |
+| Code | `code:CodeContest` | `eval:CodeContest` | Binary (test case execution) |
+| QA | `qa:NaturalQuestions` | `eval:NaturalQuestions` | Binary (exact match) |
+
 ## Phase 0: Infrastructure & Data Pipeline (Week 1-2)
 
 ### 0.1 Environment Setup
-- [ ] Create venv on Mila: `bash scripts/setup_env.sh`
-- [ ] Install Oat: `pip install vllm==0.8.4 oat-llm==0.1.4`
-- [ ] Install GEM: `pip install -U gem-llm`
-- [ ] Install TRL: `pip install trl`
-- [ ] Install eval harness: `pip install lm-eval`
+- [x] Create venv on Mila: `bash scripts/setup_env.sh`
+- [x] Install VeRL, GEM, vLLM, Ray, lm-eval, wandb
 - [ ] Verify GPU access: `salloc --partition=main --gres=gpu:a100l:2 --time=1:00:00`
 - [ ] Set up WandB project: `forgetting-llms`
-- [ ] Test ON-RL: Run a quick GRPO training on Qwen3-1.7B + `math:GSM8K` via Oat to verify everything works
+- [ ] **Smoke test**: Run GRPO on Qwen3-1.7B + GSM8K via VeRL (`scripts/run_grpo_smoke_test.sh`)
 
 ### 0.2 GEM Trajectory Collector
 Build a custom data collection layer on top of GEM environments since GEM only provides RL training, not SFT data generation.
@@ -44,12 +49,11 @@ src/data/collector.py
 ```
 
 Needs to:
-1. Wrap GEM environments (`Math12K`, `CodeContest`, `NaturalQuestions`, etc.)
+1. Wrap GEM environments (`math:GSM8K`, `code:CodeContest`, `qa:NaturalQuestions`, etc.)
 2. Run any HF model through the environment via vLLM for fast inference
 3. Record full trajectories: `(prompt, response, reward, terminated, metadata)`
 4. Export in multiple formats:
    - **SFT format**: `{"prompt": ..., "completion": ...}` (filter for correct responses only)
-   - **DPO format**: `{"prompt": ..., "chosen": ..., "rejected": ...}` (pair correct vs incorrect)
    - **Raw trajectories**: Full interaction logs for analysis
 5. Support batched/vectorized collection via `gem.make_vec()`
 
@@ -62,7 +66,6 @@ For each domain, generate:
 | Ground truth SFT data | Extract from GEM env ground-truth answers | ~10K per domain |
 | Same-family teacher data | Run Qwen3-32B through GEM envs | ~10K per domain |
 | Cross-family teacher data | Run Llama-3.1-70B-Instruct through GEM envs | ~10K per domain |
-| Preference pairs (for DPO) | Collect correct + incorrect rollouts from base model | ~10K pairs per domain |
 
 **Note**: Teacher inference on 32B/70B models requires multi-GPU or API access. Consider using vLLM with tensor parallelism or Together AI / Fireworks API.
 
@@ -82,22 +85,21 @@ Use `lm-evaluation-harness` for standardized benchmarks. Custom scripts for:
 
 ### 1.1 Base Model Experiments (BASE starting point)
 
-Run all 7 methods × 3 domains on Qwen3-4B (base):
+Run all 6 methods × 3 domains on Qwen3-4B (base):
 
 | Method | Training framework | Estimated time (2x A100 80GB) |
 |--------|-------------------|-------------------------------|
-| `GT-SFT` | TRL SFTTrainer | ~3h |
-| `SF-SFT` | TRL SFTTrainer | ~3h |
-| `CF-SFT` | TRL SFTTrainer | ~3h |
-| `SELF` | Custom SPIN loop | ~6h |
-| `ON-RL` | GEM + Oat (GRPO) | ~8h |
-| `OFF-RL` | TRL DPOTrainer | ~4h |
+| `GT-SFT` | VeRL fsdp_sft_trainer | ~3h |
+| `SF-SFT` | VeRL fsdp_sft_trainer | ~3h |
+| `CF-SFT` | VeRL fsdp_sft_trainer | ~3h |
+| `SELF` | Custom SPIN loop (VeRL) | ~6h |
+| `ON-RL` | VeRL GRPO + GEM reward | ~8h |
 | `PI` | Custom pi-distill loop | ~8h |
 
-**Total Phase 1.1**: 21 runs × ~5h avg = ~210 GPU-hours (2x A100 = 2 GPU-hours per hour)
+**Total Phase 1.1**: 18 runs × ~5h avg = ~180 GPU-hours (2x A100 = 2 GPU-hours per hour)
 
 ### 1.2 Evaluation
-- Run full forgetting profile on all 21 checkpoints
+- Run full forgetting profile on all 18 checkpoints
 - Run base model evaluation (no post-training baseline)
 - Compute sample-level forgetting rates
 - Generate forgetting heatmaps (method × domain × capability)
@@ -112,13 +114,13 @@ Run all 7 methods × 3 domains on Qwen3-4B (base):
 
 ### 2.1 Safety-Aligned Model Experiments (SAFE starting point)
 
-Repeat all 7 methods × 3 domains on Qwen3-4B-Instruct (safety-aligned):
+Repeat all 6 methods × 3 domains on Qwen3-4B-Instruct (safety-aligned):
 
-**Total Phase 2.1**: 21 runs × ~5h avg = ~210 GPU-hours
+**Total Phase 2.1**: 18 runs × ~5h avg = ~180 GPU-hours
 
 ### 2.2 Safety Evaluation
-- Run safety benchmark suite on all 21 SAFE checkpoints
-- Compare against SAFE baseline (Qwen3-4B before any post-training)
+- Run safety benchmark suite on all 18 SAFE checkpoints
+- Compare against SAFE baseline (Qwen3-4B-Instruct before any post-training)
 - Run adversarial attacks (GCG, AutoDAN) on selected checkpoints
 - Extract refusal direction from SAFE baseline, measure attenuation per method
 
@@ -171,13 +173,13 @@ On selected checkpoints:
 | Phase | Runs | Est. GPU-hours |
 |-------|------|---------------|
 | Phase 0 (data gen + test) | Teacher inference + test runs | ~80h |
-| Phase 1 (core) | 21 | ~210h |
-| Phase 2 (safety) | 21 | ~210h |
+| Phase 1 (core) | 18 | ~180h |
+| Phase 2 (safety) | 18 | ~180h |
 | Phase 3 (scale) | ~28 | ~336h |
 | Phase 4 (analysis) | Eval only | ~40h |
-| **Total** | | **~876 GPU-hours** |
+| **Total** | | **~816 GPU-hours** |
 
-At 2x A100 per job, this is ~438 wall-clock hours of jobs. Feasible on Mila's allocation.
+At 2x A100 per job, this is ~408 wall-clock hours of jobs. Feasible on Mila's allocation.
 
 ## Slurm Job Template (Standard — all jobs)
 
@@ -192,58 +194,39 @@ At 2x A100 per job, this is ~438 wall-clock hours of jobs. Feasible on Mila's al
 #SBATCH --output=slurm_logs/%j_%x.out
 #SBATCH --error=slurm_logs/%j_%x.err
 
-module load python/3.11
+module load python/3.10
 source $HOME/envs/forgetting/bin/activate
+export HF_HOME=~/scratch/huggingface
 
-# For SFT/DPO:
-srun torchrun --nproc_per_node=2 src/training/{method}.py ...
+# For SFT methods (GT-SFT, SF-SFT, CF-SFT):
+srun torchrun --nproc_per_node=2 src/training/{method}.py \
+    --config configs/methods/{method}.yaml \
+    --domain configs/domains/{domain}.yaml ...
 
-# For ON-RL (Oat + GEM):
-python examples/train_oat/train_oat_grpo.py \
-    --env_id math:GSM8K \
-    --pretrain Qwen/Qwen3-4B \
-    --gpus 2 \
-    --num_samples 4 \
+# For ON-RL (GRPO):
+python3 -m verl.trainer.main_ppo \
+    algorithm.adv_estimator=grpo \
+    actor_rollout_ref.model.path=Qwen/Qwen3-4B \
+    custom_reward_function.path=src/rewards/math_reward.py \
     ...
 ```
 
-## ON-RL Quick Start (GEM + Oat GRPO)
+## ON-RL Quick Start (VeRL GRPO)
 
 The fastest path to a working run:
 
 ```bash
-# Install
-pip install vllm==0.8.4 oat-llm==0.1.4 gem-llm
+# 1. Preprocess data
+python scripts/preprocess_data.py --dataset gsm8k
 
-# Set LD_LIBRARY_PATH (required by Oat)
-export LD_LIBRARY_PATH=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))"):$LD_LIBRARY_PATH
-
-# Launch GRPO on Qwen3-1.7B + GSM8K
-python train_oat_grpo.py \
-    --env_id math:GSM8K \
-    --wrappers "concat_chat" \
-    --prompt_template "qwen3_general" \
-    --pretrain Qwen/Qwen3-1.7B \
-    --gpus 2 \
-    --num_samples 4 \
-    --rollout_batch_size 16 \
-    --learning_rate 1e-6 \
-    --generate_max_length 4096 \
-    --max_train 65000 \
-    --gamma 1.0 \
-    --norm_return \
-    --zero_stage 2 \
-    --gradient-checkpointing \
-    --collocate --vllm_sleep --vllm_gpu_ratio 0.45 \
-    --enable_prefix_caching \
-    --use-wb --wb_project forgetting-llms \
-    --wb-run-name on_rl_math_base_qwen3_1.7b
+# 2. Run GRPO smoke test
+sbatch scripts/run_grpo_smoke_test.sh
 ```
 
 ## Risk Mitigation
 
 - **Teacher inference cost**: Use API access (Together AI, Fireworks) for 32B/70B if GPU allocation is tight
 - **GEM environment issues**: Fall back to static datasets (GSM8K, MBPP, Alpaca) if GEM envs are unreliable
-- **Pi-distill complexity**: This is the newest method — start with the other 6, add PI once infrastructure is stable
+- **Pi-distill complexity**: This is the newest method — start with the other 5, add PI once infrastructure is stable
 - **Evaluation bottleneck**: Run evals in parallel across multiple nodes; use `lm-evaluation-harness` batch mode
 - **Preemption (long partition)**: Stick to `main` partition (not preemptable) with 8h jobs; checkpoint frequently
