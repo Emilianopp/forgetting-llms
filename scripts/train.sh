@@ -20,11 +20,12 @@ MODEL_SCALE=${4:?Missing model_scale (qwen_1.5b|qwen_3b|qwen_7b)}
 # Update job name
 export SLURM_JOB_NAME="forgetting-${METHOD}-${DOMAIN}-${STARTING_POINT}-${MODEL_SCALE}"
 
-module load python/3.11 2>/dev/null || true
+module load python/3.10
 source $HOME/envs/forgetting/bin/activate
+export HF_HOME=~/scratch/huggingface
 
 RUN_NAME="${METHOD}_${DOMAIN}_${STARTING_POINT}_${MODEL_SCALE}"
-CHECKPOINT_DIR="${SCRATCH}/forgetting-llms/checkpoints/${RUN_NAME}"
+CHECKPOINT_DIR=~/scratch/forgetting-llms/checkpoints/${RUN_NAME}
 
 echo "=== Starting training ==="
 echo "Method: ${METHOD}"

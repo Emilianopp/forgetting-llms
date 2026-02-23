@@ -5,7 +5,7 @@
 
 #SBATCH --job-name=eval
 #SBATCH --partition=main
-#SBATCH --gres=gpu:a100:1
+#SBATCH --gres=gpu:a100l:1
 #SBATCH --mem=48G
 #SBATCH --cpus-per-task=8
 #SBATCH --time=4:00:00
@@ -14,10 +14,11 @@
 
 RUN_NAME=${1:?Usage: eval.sh <run_name>}
 
-module load python/3.11 2>/dev/null || true
+module load python/3.10
 source $HOME/envs/forgetting/bin/activate
+export HF_HOME=~/scratch/huggingface
 
-CHECKPOINT_DIR="${SCRATCH}/forgetting-llms/checkpoints/${RUN_NAME}"
+CHECKPOINT_DIR=~/scratch/forgetting-llms/checkpoints/${RUN_NAME}
 RESULTS_DIR="results/${RUN_NAME}"
 
 mkdir -p ${RESULTS_DIR}

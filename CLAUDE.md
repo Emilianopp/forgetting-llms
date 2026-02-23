@@ -1,7 +1,7 @@
 # forgetting-llms
 
 ## Project Overview
-Systematic study of forgetting across 7 post-training methods (GT-SFT, SF-SFT, CF-SFT, Self-distillation, Online RL, Off-policy RL, Pi-distill) × 3 domains (math, code, QA) × 2 starting points (base, safety-aligned) on Qwen3 models.
+Systematic study of forgetting across 6 post-training methods (GT-SFT, SF-SFT, CF-SFT, Self-distillation, Online RL, Pi-distill) x 3 domains (math, code, QA) x 2 starting points (base, safety-aligned) on Qwen3 models.
 
 ## Key Files
 - `PROJECT.md` — Full research design, evaluation framework, related work
@@ -30,6 +30,7 @@ cd $HOME/forgetting-llms
 
 ### Step 4: Activate environment
 ```bash
+module load python/3.10
 source $HOME/envs/forgetting/bin/activate
 ```
 
@@ -41,7 +42,7 @@ source $HOME/envs/forgetting/bin/activate
 - Check logs: `tail -f slurm_logs/<job_id>_*.out`
 
 ### Syncing code
-Repo: https://github.com/Emilianopp/forgetting-llms (private)
+Repo: https://github.com/Emilianopp/forgetting-llms (public)
 
 ```bash
 # Local: push to remote
@@ -56,16 +57,23 @@ cd $HOME/forgetting-llms && git pull
 - **SSH alias**: `mila` (configured in ~/.ssh/config)
 - **Backup**: Narval, Cedar, Graham (Alliance Canada, user: `emiliano`)
 - **Scheduler**: Slurm
-- **GPUs**: A100 (40GB/80GB) via `--gres=gpu:a100:1`
+- **GPUs**: A100 80GB via `--gres=gpu:a100l:2`
 - **Storage**:
   - `$HOME` — Code, configs, small files (quota limited)
-  - `$SCRATCH` — Checkpoints, datasets, large files (no quota, auto-purged after 90 days)
+  - `~/scratch` — **ALL** checkpoints, datasets, model weights, large files (auto-purged after 90 days)
   - `/cvmfs/` — Shared modules
 - **Tracking**: Weights & Biases (project: `forgetting-llms`)
 
+## STRICT RULE: Storage
+**All data, checkpoints, datasets, and model weights MUST go to `~/scratch/`.** Never store large files in `$HOME`. Use paths like:
+- Checkpoints: `~/scratch/forgetting-llms/checkpoints/{run_name}/`
+- Datasets: `~/scratch/forgetting-llms/data/`
+- Model cache: `~/scratch/huggingface/`
+- Set `HF_HOME=~/scratch/huggingface` so transformers/datasets cache to scratch
+
 ## Environment
-- Python 3.11 (`module load python/3.11`)
-- PyTorch, Transformers, VeRL, vLLM, datasets, wandb, Ray
+- Python 3.10 (`module load python/3.10`)
+- PyTorch 2.9.1, Transformers 4.57.6, VeRL 0.7.0, vLLM 0.15.1, Ray 2.54.0
 - GEM (`gem-llm`) for RL environments
 - `lm-evaluation-harness` for benchmarks
 - Setup script: `bash scripts/setup_env.sh`
@@ -80,12 +88,15 @@ cd $HOME/forgetting-llms && git pull
 - Configs use YAML in `configs/{methods,domains,models}/`
 - All training scripts in `src/training/`
 - Slurm logs go to `slurm_logs/`
-- Checkpoints go to `$SCRATCH/forgetting-llms/checkpoints/{method}_{domain}_{starting_point}_{scale}/`
+- Checkpoints go to `~/scratch/forgetting-llms/checkpoints/{method}_{domain}_{starting_point}_{scale}/`
 - Results go to `results/{run_id}/`
 - WandB run names: `{method}_{domain}_{starting_point}_{scale}`
 
-## Slurm Partitions
-- `main` — Short jobs (<12h), eval runs
-- `long` — Training runs (up to 48h)
-- Use `--gres=gpu:a100:1` for single-GPU (SFT, DPO, eval)
-- Use `--gres=gpu:a100:2` for multi-GPU (ON-RL, PI)
+## Slurm Job Config (Standard — all jobs)
+```
+#SBATCH --partition=main
+#SBATCH --gres=gpu:a100l:2
+#SBATCH --mem=48G
+#SBATCH --cpus-per-task=8
+#SBATCH --time=8:00:00
+```

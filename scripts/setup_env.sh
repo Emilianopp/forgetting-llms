@@ -7,7 +7,7 @@ set -e
 echo "=== Setting up forgetting-llms environment ==="
 
 # Load modules (Mila)
-module load python/3.11 2>/dev/null || true
+module load python/3.10
 
 # Create virtual environment
 python -m venv $HOME/envs/forgetting
