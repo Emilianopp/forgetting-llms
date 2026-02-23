@@ -1,12 +1,22 @@
 #!/bin/bash
-# Eval Sweep: Evaluate GRPO checkpoints on non-math benchmarks to measure forgetting.
+# Eval Sweep: Evaluate training checkpoints on non-math benchmarks to measure forgetting.
 #
 # Evaluates the base model (step 0) plus all saved checkpoints on 8 benchmarks.
 # FSDP checkpoints are merged to HF format before evaluation.
+# Works with both GRPO and SFT checkpoints.
 #
 # Usage:
-#   sbatch --dependency=afterok:<TRAINING_JOB_ID> scripts/eval_sweep.sh
-#   sbatch scripts/eval_sweep.sh  # if training already finished
+#   sbatch scripts/eval_sweep.sh <checkpoint_dir> <results_name> [base_model]
+#   sbatch scripts/eval_sweep.sh  # defaults to GRPO smoke test dirs
+#
+# Arguments (all optional, with defaults):
+#   $1 = checkpoint directory (default: grpo_full_qwen3_1.7b_gsm8k)
+#   $2 = results directory name (default: same as checkpoint dir basename)
+#   $3 = base model HF ID (default: Qwen/Qwen3-1.7B)
+#
+# Examples:
+#   sbatch scripts/eval_sweep.sh ~/scratch/forgetting-llms/checkpoints/gt_sft_qwen3_1.7b_gsm8k gt_sft_qwen3_1.7b_gsm8k
+#   sbatch --dependency=afterok:12345 scripts/eval_sweep.sh ~/scratch/forgetting-llms/checkpoints/sf_sft_qwen3_1.7b_gsm8k
 
 #SBATCH --job-name=eval-sweep
 #SBATCH --partition=main
@@ -27,9 +37,10 @@ export PYTHONUNBUFFERED=1
 unset ROCR_VISIBLE_DEVICES
 
 # --- Configuration ---
-CKPT_DIR=~/scratch/forgetting-llms/checkpoints/grpo_full_qwen3_1.7b_gsm8k
-RESULTS_DIR=~/scratch/forgetting-llms/eval_results/grpo_full_qwen3_1.7b_gsm8k
-BASE_MODEL="Qwen/Qwen3-1.7B"
+CKPT_DIR=${1:-~/scratch/forgetting-llms/checkpoints/grpo_full_qwen3_1.7b_gsm8k}
+RESULTS_NAME=${2:-$(basename "$CKPT_DIR")}
+RESULTS_DIR=~/scratch/forgetting-llms/eval_results/$RESULTS_NAME
+BASE_MODEL=${3:-"Qwen/Qwen3-1.7B"}
 REPO_DIR=$HOME/forgetting-llms
 
 # 8 benchmarks — all multiple-choice, 0-shot
@@ -103,19 +114,28 @@ for ckpt in $CKPT_DIRS; do
         continue
     fi
 
-    actor_dir="$ckpt/actor"
-    if [ ! -d "$actor_dir" ]; then
-        echo "WARNING: $actor_dir not found, skipping"
+    # Determine FSDP shard directory:
+    #   GRPO checkpoints: global_step_X/actor/
+    #   SFT checkpoints:  global_step_X/ (shards directly in step dir)
+    if [ -d "$ckpt/actor" ]; then
+        fsdp_dir="$ckpt/actor"
+        merged_dir="$ckpt/actor_merged"
+    else
+        fsdp_dir="$ckpt"
+        merged_dir="$ckpt/merged"
+    fi
+
+    if [ ! -d "$fsdp_dir" ]; then
+        echo "WARNING: $fsdp_dir not found, skipping"
         continue
     fi
 
     # Merge FSDP checkpoint to HF format
-    merged_dir="$ckpt/actor_merged"
     if [ ! -d "$merged_dir" ] || [ -z "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
         echo "Merging FSDP checkpoint: $step_name"
         python -m verl.model_merger merge \
             --backend fsdp \
-            --local_dir "$actor_dir" \
+            --local_dir "$fsdp_dir" \
             --target_dir "$merged_dir"
     else
         echo "Using existing merged model: $merged_dir"
