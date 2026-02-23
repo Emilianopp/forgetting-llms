@@ -57,16 +57,9 @@ def compute_score(
     Returns:
         1.0 if correct, 0.0 if incorrect.
     """
-    # Try GEM's grading first (more robust, handles LaTeX math)
-    try:
-        from gem.envs.math_env import MathEnv
-
-        is_correct = MathEnv.check_correct(solution_str, ground_truth)
-        return 1.0 if is_correct else 0.0
-    except ImportError:
-        pass
-
-    # Fallback: extract answer and compare
+    # Note: GEM's MathEnv.check_correct uses signal.SIGALRM which fails in
+    # VeRL's worker threads. Use direct extraction + number comparison instead.
+    # This is sufficient for GSM8K (numeric answers).
     model_answer = extract_boxed_answer(solution_str)
     if model_answer is None:
         model_answer = extract_answer_after_hash(solution_str)
