@@ -53,14 +53,23 @@ Run GRPO on Qwen3-1.7B + GSM8K via VeRL on Mila (2x A100 80GB) to verify the tra
 - Fix: Disabled KL loss to skip ref model entirely (smoke test only)
 - Also reduced batch sizes: train_batch_size 32→16, response_length 2048→1024
 
-### Current Status: TRAINING (Job 8769777)
-- **Steps 1-10 completed** and counting
+### Current Status: SMOKE TEST PASSED (Job 8769777)
+- **Pipeline verified end-to-end**: VeRL GRPO training with vLLM rollouts, custom reward function, WandB logging, periodic validation — all working
+- **Steps 1-19+ completed** (~16 min elapsed, ~25s/step)
 - **Initial GSM8K accuracy**: 37.5% (greedy, 1024 max tokens)
-- **Step 10 accuracy**: 43.9% (improving)
+- **Step 10 validation accuracy**: 43.9% (+6.4pp improvement)
+- **Training reward trend**: batch mean accuracy rising from ~0.38 (steps 1-5) → ~0.62 (steps 16-19)
 - **GPU**: 50.5 GB / 80 GB per A100
-- **CPU**: ~68.6 GB
+- **CPU**: ~69 GB
 - **Throughput**: ~1,370 tokens/sec, ~25s/step
 - **WandB**: `grpo_smoke_test_qwen3_1.7b_gsm8k` in project `forgetting-llms`
+- **Note**: Full 3-epoch run (1401 steps) would take ~9.7 hours, exceeding 4-hour wall limit. Job will be killed at ~step 550. This is fine for a smoke test — the goal was to verify the pipeline works.
+
+### Observations for Production Runs
+- High `response_length/clip_ratio` (70-85%) — many responses hit the 1024 token limit. Increase `max_response_length` to 2048 with more memory.
+- Install `flash_attn` to enable flash attention and `use_remove_padding=True` for better throughput.
+- Request 64-96GB system RAM to enable KL regularization (ref model).
+- Consider increasing `max_response_length` to 2048 and `train_batch_size` to 32+ for real experiments.
 
 ## Environment Changes
 - Downgraded vLLM: 0.15.1 → 0.12.0
