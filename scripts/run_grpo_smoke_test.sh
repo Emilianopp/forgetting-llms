@@ -25,6 +25,9 @@ module load python/3.10
 source $HOME/envs/forgetting/bin/activate
 export HF_HOME=~/scratch/huggingface
 export PYTHONUNBUFFERED=1
+# Mila sets ROCR_VISIBLE_DEVICES (AMD ROCm) even on NVIDIA nodes,
+# which conflicts with CUDA_VISIBLE_DEVICES in VeRL's worker init
+unset ROCR_VISIBLE_DEVICES
 
 # --- Paths ---
 DATA_DIR=~/scratch/forgetting-llms/data/gsm8k
