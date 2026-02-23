@@ -26,9 +26,6 @@ pip install verl
 # vLLM — fast inference for data generation and VeRL rollouts
 pip install vllm
 
-# TRL — fallback for offline DPO (OFF-RL method only, VeRL doesn't support offline DPO)
-pip install trl
-
 # GEM environment suite
 pip install gem-llm
 

@@ -67,7 +67,6 @@ cd $HOME/forgetting-llms && git pull
 - Python 3.11 (`module load python/3.11`)
 - PyTorch, Transformers, VeRL, vLLM, datasets, wandb, Ray
 - GEM (`gem-llm`) for RL environments
-- TRL (fallback for offline DPO only)
 - `lm-evaluation-harness` for benchmarks
 - Setup script: `bash scripts/setup_env.sh`
 
@@ -75,7 +74,6 @@ cd $HOME/forgetting-llms && git pull
 - **SFT methods** (GT-SFT, SF-SFT, CF-SFT): VeRL `fsdp_sft_trainer` (torchrun)
 - **Online RL** (ON-RL): VeRL + GEM (GRPO via Ray)
 - **Self-distillation** (SELF): VeRL SPIN recipe
-- **Off-policy RL** (OFF-RL): TRL `DPOTrainer` (VeRL doesn't support offline DPO)
 - **Pi-distill** (PI): Custom training loop
 
 ## Conventions
