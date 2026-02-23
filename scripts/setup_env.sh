@@ -15,15 +15,25 @@ source $HOME/envs/forgetting/bin/activate
 
 # Core dependencies
 pip install --upgrade pip
-pip install torch torchvision torchaudio
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 pip install transformers datasets accelerate
-pip install trl  # SFTTrainer, DPOTrainer
-pip install vllm  # Fast inference for data generation
 pip install wandb
 pip install peft  # LoRA if needed
 
+# VeRL — primary training framework (SFT + online RL: GRPO, PPO, REINFORCE++, SPIN)
+pip install verl
+
+# vLLM — fast inference for data generation and VeRL rollouts
+pip install vllm
+
+# TRL — fallback for offline DPO (OFF-RL method only, VeRL doesn't support offline DPO)
+pip install trl
+
 # GEM environment suite
 pip install gem-llm
+
+# Ray — required by VeRL for distributed RL training
+pip install ray[default]
 
 # Evaluation
 pip install lm-eval  # lm-evaluation-harness
