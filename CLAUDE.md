@@ -1,7 +1,7 @@
 # forgetting-llms
 
 ## Project Overview
-Systematic study of forgetting across 7 post-training methods (GT-SFT, SF-SFT, CF-SFT, Self-distillation, Online RL, Off-policy RL, Pi-distill) × 3 domains (math, code, QA) × 2 starting points (base, safety-aligned) on Qwen2.5 models.
+Systematic study of forgetting across 7 post-training methods (GT-SFT, SF-SFT, CF-SFT, Self-distillation, Online RL, Off-policy RL, Pi-distill) × 3 domains (math, code, QA) × 2 starting points (base, safety-aligned) on Qwen3 models.
 
 ## Key Files
 - `PROJECT.md` — Full research design, evaluation framework, related work

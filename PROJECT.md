@@ -28,7 +28,7 @@ Key unanswered questions:
 | ID | Method | Description | Data Source | Online/Offline |
 |----|--------|-------------|-------------|----------------|
 | `GT-SFT` | SFT on ground truth | Standard supervised fine-tuning on verified data | Human-annotated / verified solutions | Offline |
-| `SF-SFT` | SFT same-family distill | SFT on synthetic data from larger model, same architecture family | e.g., Qwen2.5-72B-Instruct outputs | Offline |
+| `SF-SFT` | SFT same-family distill | SFT on synthetic data from larger model, same architecture family | e.g., Qwen3-72B-Instruct outputs | Offline |
 | `CF-SFT` | SFT cross-family distill | SFT on synthetic data from larger model, different architecture family | e.g., Llama-3.1-70B-Instruct outputs | Offline |
 | `SELF` | Self-distillation | Model teaches itself via SPIN or SDFT | Own generations + ground truth signal | Online (iterative) |
 | `ON-RL` | Online RL (from experience) | GRPO with verifiable rewards | Prompts + deterministic verifier | Online |
@@ -66,14 +66,14 @@ Using GEM gives us:
 
 ### Base Models
 
-Primary experiments on **Qwen2.5** family for scale analysis:
-- Qwen2.5-1.5B (low compute, fast iteration)
-- Qwen2.5-3B (primary experimental scale)
-- Qwen2.5-7B (validation scale)
-- Qwen2.5-14B (stretch goal, if compute allows)
+Primary experiments on **Qwen3** family for scale analysis:
+- Qwen3-1.7B (`Qwen/Qwen3-1.7B`) — low compute, fast iteration
+- Qwen3-4B (`Qwen/Qwen3-4B`) — primary experimental scale
+- Qwen3-8B (`Qwen/Qwen3-8B`) — validation scale
+- Qwen3-14B (`Qwen/Qwen3-14B`) — stretch goal, if compute allows
 
 Teachers for distillation:
-- Same-family: Qwen2.5-72B-Instruct
+- Same-family: Qwen3-32B (`Qwen/Qwen3-32B`)
 - Cross-family: Llama-3.1-70B-Instruct (or DeepSeek-V3)
 
 ### Starting Points (2 conditions)
@@ -82,8 +82,8 @@ Each experiment is run from **two starting points** to isolate the safety forget
 
 | ID | Starting Point | Purpose |
 |----|---------------|---------|
-| `BASE` | Qwen2.5-{size} (base, no alignment) | Measures general capability forgetting from post-training |
-| `SAFE` | Qwen2.5-{size}-Instruct (safety-aligned) | Measures whether post-training breaks existing safety alignment |
+| `BASE` | Qwen3-{size} (base, no alignment) | Measures general capability forgetting from post-training |
+| `SAFE` | Qwen3-{size}-Instruct (safety-aligned) | Measures whether post-training breaks existing safety alignment |
 
 This doubles the experimental matrix but answers a critical question: **is safety forgetting an inherent cost of further post-training, or do some methods preserve safety while others destroy it?**
 
@@ -142,7 +142,7 @@ Beyond benchmark scores, characterize the output distribution:
 
 ### E. Safety Degradation Analysis (SAFE starting point only)
 
-This section applies only to experiments starting from the safety-aligned model (Qwen2.5-{size}-Instruct).
+This section applies only to experiments starting from the safety-aligned model (Qwen3-{size}-Instruct).
 
 **Safety Benchmarks (multi-dimensional):**
 
@@ -182,8 +182,8 @@ This section applies only to experiments starting from the safety-aligned model 
 Total experiments: 7 methods x 3 domains x 2 starting points x 2 scales (minimum) = **84 training runs**
 
 Priority ordering:
-1. **Phase 1** (core forgetting): 7 methods x 3 domains x BASE starting point x Qwen2.5-3B = 21 runs
-2. **Phase 2** (safety): 7 methods x 3 domains x SAFE starting point x Qwen2.5-3B = 21 runs
+1. **Phase 1** (core forgetting): 7 methods x 3 domains x BASE starting point x Qwen3-3B = 21 runs
+2. **Phase 2** (safety): 7 methods x 3 domains x SAFE starting point x Qwen3-3B = 21 runs
 3. **Phase 3** (scale): Repeat top findings from Phase 1+2 at 1.5B and 7B = ~28 runs
 4. **Phase 4** (deep analysis): Representation analysis, refusal direction analysis, policy analysis on selected runs
 
