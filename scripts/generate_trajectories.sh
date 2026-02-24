@@ -22,7 +22,7 @@
 #SBATCH --gres=gpu:a100l:2
 #SBATCH --mem=64G
 #SBATCH --cpus-per-task=8
-#SBATCH --time=4:00:00
+#SBATCH --time=8:00:00
 #SBATCH --output=slurm_logs/%j_%x.out
 #SBATCH --error=slurm_logs/%j_%x.err
 
@@ -62,6 +62,7 @@ python $REPO_DIR/src/data/generate_teacher_solutions.py \
     --n_samples "$N_SAMPLES" \
     --tensor_parallel_size 2 \
     --max_tokens 2048 \
+    --chunk_size 500 \
     --output_dir "$OUTPUT_DIR"
 
 echo "========================================="
