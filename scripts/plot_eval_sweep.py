@@ -31,6 +31,8 @@ BENCHMARKS = [
     "boolq",
     "openbookqa",
     "truthfulqa_mc2",
+    "mmlu",
+    "ifeval",
 ]
 
 # Metric to extract per benchmark (lm_eval default metric names)
@@ -43,6 +45,8 @@ METRIC_MAP = {
     "boolq": "acc,none",
     "openbookqa": "acc_norm,none",
     "truthfulqa_mc2": "acc,none",
+    "mmlu": "acc,none",
+    "ifeval": "prompt_level_strict_acc,none",
 }
 
 

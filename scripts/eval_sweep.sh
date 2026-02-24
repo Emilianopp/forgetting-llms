@@ -23,7 +23,7 @@
 #SBATCH --gres=gpu:a100l:1
 #SBATCH --mem=48G
 #SBATCH --cpus-per-task=8
-#SBATCH --time=10:00:00
+#SBATCH --time=16:00:00
 #SBATCH --output=slurm_logs/%j_%x.out
 #SBATCH --error=slurm_logs/%j_%x.err
 
@@ -43,8 +43,8 @@ RESULTS_DIR=~/scratch/forgetting-llms/eval_results/$RESULTS_NAME
 BASE_MODEL=${3:-"Qwen/Qwen3-1.7B"}
 REPO_DIR=$HOME/forgetting-llms
 
-# 8 benchmarks — all multiple-choice, 0-shot
-BENCHMARKS="arc_challenge,arc_easy,hellaswag,winogrande,piqa,boolq,openbookqa,truthfulqa_mc2"
+# 10 benchmarks — mostly multiple-choice, 0-shot
+BENCHMARKS="arc_challenge,arc_easy,hellaswag,winogrande,piqa,boolq,openbookqa,truthfulqa_mc2,mmlu,ifeval"
 
 mkdir -p slurm_logs
 mkdir -p "$RESULTS_DIR"
@@ -130,13 +130,15 @@ for ckpt in $CKPT_DIRS; do
         continue
     fi
 
-    # Merge FSDP checkpoint to HF format
+    # Merge FSDP checkpoint to HF format (skip if merged dir already exists)
+    did_merge=false
     if [ ! -d "$merged_dir" ] || [ -z "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
         echo "Merging FSDP checkpoint: $step_name"
         python -m verl.model_merger merge \
             --backend fsdp \
             --local_dir "$fsdp_dir" \
             --target_dir "$merged_dir"
+        did_merge=true
     else
         echo "Using existing merged model: $merged_dir"
     fi
@@ -144,9 +146,11 @@ for ckpt in $CKPT_DIRS; do
     # Run evaluation
     run_eval "$merged_dir" "$result_dir" "$step_name"
 
-    # Clean up merged model to save disk space
-    echo "Cleaning up merged model: $merged_dir"
-    rm -rf "$merged_dir"
+    # Clean up merged model only if we created it (preserve pre-existing ones e.g. SDFT)
+    if [ "$did_merge" = true ]; then
+        echo "Cleaning up merged model: $merged_dir"
+        rm -rf "$merged_dir"
+    fi
 done
 
 # --- Step 2: Run plotting script ---

@@ -5,7 +5,7 @@
 #   sbatch scripts/run_sft.sh <dataset> <model> <experiment_name> <data_variant>
 #
 # Arguments:
-#   $1 = dataset name (gsm8k, math)
+#   $1 = dataset name (gsm8k, math, triviaqa)
 #   $2 = model path (HF model ID or local path, e.g. Qwen/Qwen3-1.7B)
 #   $3 = experiment name (e.g. gt_sft_qwen3_1.7b_gsm8k)
 #   $4 = data variant (gt, sf, cf — determines which data dir to use)
@@ -47,6 +47,13 @@ case "$DATA_VARIANT" in
     *)  echo "ERROR: Unknown data variant '$DATA_VARIANT'. Use gt, sf, or cf."; exit 1 ;;
 esac
 
+# --- Per-dataset config ---
+case "$DATASET" in
+    gsm8k|math)  MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
+    triviaqa)    MAX_LENGTH=512;  TOTAL_EPOCHS=3 ;;
+    *)           MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
+esac
+
 SAVE_DIR=~/scratch/forgetting-llms/checkpoints/${EXPERIMENT_NAME}
 REPO_DIR=$HOME/forgetting-llms
 
@@ -80,8 +87,9 @@ torchrun --standalone --nnodes=1 --nproc_per_node=2 \
     data.response_key=extra_info \
     data.prompt_dict_keys="['question']" \
     +data.response_dict_keys="['answer']" \
+    data.train_batch_size=16 \
     data.micro_batch_size_per_gpu=4 \
-    data.max_length=2048 \
+    data.max_length=$MAX_LENGTH \
     model.partial_pretrain=$MODEL \
     model.enable_gradient_checkpointing=True \
     model.fsdp_config.model_dtype=bf16 \
@@ -90,8 +98,8 @@ torchrun --standalone --nnodes=1 --nproc_per_node=2 \
     optim.weight_decay=0.01 \
     optim.lr_warmup_steps_ratio=0.05 \
     optim.lr_scheduler=cosine \
-    trainer.total_epochs=3 \
-    trainer.save_freq=200 \
+    trainer.total_epochs=$TOTAL_EPOCHS \
+    trainer.save_freq=100 \
     trainer.test_freq=50 \
     trainer.logger='["console","wandb"]' \
     trainer.project_name=forgetting-llms \

@@ -32,6 +32,8 @@ BENCHMARKS = [
     "boolq",
     "openbookqa",
     "truthfulqa_mc2",
+    "mmlu",
+    "ifeval",
 ]
 
 METRIC_MAP = {
@@ -43,6 +45,8 @@ METRIC_MAP = {
     "boolq": "acc,none",
     "openbookqa": "acc_norm,none",
     "truthfulqa_mc2": "acc,none",
+    "mmlu": "acc,none",
+    "ifeval": "prompt_level_strict_acc,none",
 }
 
 METHOD_STYLES = {
@@ -274,6 +278,69 @@ def plot_heatmap_comparison(methods_data, output_dir):
     print(f"Saved: {output_dir / 'heatmap_comparison.png'}")
 
 
+def plot_cross_dataset_summary(datasets_data, output_dir):
+    """Grouped bar chart: avg forgetting per method per dataset.
+
+    Args:
+        datasets_data: dict of {dataset_name: {method_name: (steps, score_dicts)}}
+        output_dir: Path for saving the plot
+    """
+    dataset_names = list(datasets_data.keys())
+    # Collect all method names across datasets
+    all_methods = []
+    for ds_methods in datasets_data.values():
+        for m in ds_methods:
+            if m not in all_methods:
+                all_methods.append(m)
+
+    # Compute avg forgetting (final step delta) for each dataset × method
+    forgetting = {}  # (dataset, method) -> avg_delta
+    for ds_name, methods in datasets_data.items():
+        for method_name, (steps, score_dicts) in methods.items():
+            if len(score_dicts) < 2:
+                continue
+            baseline = score_dicts[0]
+            final = score_dicts[-1]
+            deltas = []
+            for bench in BENCHMARKS:
+                v = final.get(bench)
+                bv = baseline.get(bench)
+                if v is not None and bv is not None:
+                    deltas.append(v - bv)
+            if deltas:
+                forgetting[(ds_name, method_name)] = sum(deltas) / len(deltas)
+
+    if not forgetting:
+        print("WARNING: No data for cross-dataset summary")
+        return
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(len(dataset_names))
+    width = 0.8 / max(len(all_methods), 1)
+
+    for i, method_name in enumerate(all_methods):
+        vals = [forgetting.get((ds, method_name), 0) for ds in dataset_names]
+        style = METHOD_STYLES.get(method_name, {"color": "gray", "label": method_name})
+        bars = ax.bar(x + i * width - 0.4 + width / 2, vals, width,
+                      label=style["label"], color=style["color"], edgecolor="white")
+        for bar, v in zip(bars, vals):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                    f"{v:+.4f}", ha="center", va="bottom" if v >= 0 else "top",
+                    fontsize=8)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([ds.upper() for ds in dataset_names], fontsize=12)
+    ax.axhline(y=0, color="black", linewidth=1, linestyle="--", alpha=0.5)
+    ax.set_ylabel("Avg Forgetting (Delta from Baseline)", fontsize=12)
+    ax.set_title("Cross-Dataset Forgetting: SFT vs GRPO", fontsize=14)
+    ax.legend(fontsize=11)
+    ax.grid(True, alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(output_dir / "cross_dataset_summary.png", dpi=150)
+    plt.close(fig)
+    print(f"Saved: {output_dir / 'cross_dataset_summary.png'}")
+
+
 def write_comparison_summary(methods_data, output_dir):
     """Print and save comparison summary table."""
     print(f"\n{'='*90}")
@@ -333,14 +400,22 @@ def write_comparison_summary(methods_data, output_dir):
 def main():
     parser = argparse.ArgumentParser(description="Compare forgetting across methods")
     parser.add_argument(
-        "--methods", nargs="+", required=True,
+        "--methods", nargs="+", default=None,
         help="Method=results_dir pairs (e.g., grpo=/path/to/results gt_sft=/path/to/results)",
+    )
+    parser.add_argument(
+        "--datasets", nargs="+", default=None,
+        help=("Cross-dataset mode: dataset=grpo_dir,sft_dir pairs "
+              "(e.g., gsm8k=/path/grpo,/path/sft math=/path/grpo,/path/sft)"),
     )
     parser.add_argument("--output_dir", type=str, default=None,
                         help="Output directory (default: ~/scratch/forgetting-llms/eval_results/comparison_plots)")
     parser.add_argument("--max_step", type=int, default=None,
                         help="Only include steps up to this value")
     args = parser.parse_args()
+
+    if args.methods is None and args.datasets is None:
+        parser.error("Must provide --methods or --datasets")
 
     if args.output_dir is None:
         args.output_dir = os.path.expanduser(
@@ -349,7 +424,47 @@ def main():
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Parse method=dir pairs
+    # --- Cross-dataset mode ---
+    if args.datasets:
+        datasets_data = {}  # {dataset: {method: (steps, scores)}}
+        for spec in args.datasets:
+            parts = spec.split("=", 1)
+            if len(parts) != 2:
+                print(f"ERROR: Invalid dataset spec '{spec}', expected 'name=grpo_dir,sft_dir'")
+                continue
+            ds_name, dirs_str = parts
+            dirs = [d.strip() for d in dirs_str.split(",")]
+            method_names = ["grpo", "gt_sft", "sf_sft", "cf_sft"]
+            ds_methods = {}
+            for i, d in enumerate(dirs):
+                method = method_names[i] if i < len(method_names) else f"method_{i}"
+                results_dir = Path(os.path.expanduser(d))
+                if not results_dir.exists():
+                    print(f"WARNING: {ds_name}/{method}: dir not found: {results_dir}")
+                    continue
+                steps, score_dicts = load_method_results(results_dir, args.max_step)
+                if steps:
+                    ds_methods[method] = (steps, score_dicts)
+                    print(f"Loaded {ds_name}/{method}: {len(steps)} evaluations")
+            if ds_methods:
+                datasets_data[ds_name] = ds_methods
+
+        if datasets_data:
+            plot_cross_dataset_summary(datasets_data, output_dir)
+            # Also produce per-dataset comparison plots
+            for ds_name, ds_methods in datasets_data.items():
+                ds_dir = output_dir / ds_name
+                ds_dir.mkdir(parents=True, exist_ok=True)
+                plot_avg_forgetting_comparison(ds_methods, ds_dir)
+                plot_per_benchmark_comparison(ds_methods, ds_dir)
+                plot_absolute_scores_comparison(ds_methods, ds_dir)
+                plot_heatmap_comparison(ds_methods, ds_dir)
+                write_comparison_summary(ds_methods, ds_dir)
+        else:
+            print("ERROR: No valid dataset data loaded!")
+        return
+
+    # --- Single-dataset method comparison mode ---
     methods_data = {}
     for spec in args.methods:
         parts = spec.split("=", 1)

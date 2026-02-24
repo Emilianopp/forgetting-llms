@@ -5,7 +5,7 @@
 #   sbatch scripts/run_grpo_sequential.sh <dataset> <model_path> <experiment_name>
 #
 # Arguments:
-#   $1 = dataset name: gsm8k, math, codecontest, naturalquestions
+#   $1 = dataset name: gsm8k, math, triviaqa
 #   $2 = model path: HF model ID (e.g. Qwen/Qwen3-1.7B) or local checkpoint dir
 #   $3 = experiment name for WandB (e.g. grpo_gsm8k_then_math)
 #
@@ -69,14 +69,17 @@ if [ ! -f "$DATA_DIR/train.parquet" ]; then
         --output_dir "$DATA_DIR"
 fi
 
-# --- Select reward function based on dataset ---
+# --- Select reward function (unified handles all domains) ---
+REWARD_PATH="$REPO_DIR/src/rewards/unified_reward.py"
+
+# --- Per-dataset config ---
 case "$DATASET" in
     gsm8k|math)
-        REWARD_PATH="$REPO_DIR/src/rewards/math_reward.py"
-        ;;
+        MAX_PROMPT=512; MAX_RESPONSE=1024; TOTAL_EPOCHS=15 ;;
+    triviaqa)
+        MAX_PROMPT=256; MAX_RESPONSE=256; TOTAL_EPOCHS=15 ;;
     *)
-        REWARD_PATH="$REPO_DIR/src/rewards/unified_reward.py"
-        ;;
+        MAX_PROMPT=512; MAX_RESPONSE=1024; TOTAL_EPOCHS=15 ;;
 esac
 
 echo "========================================="
@@ -97,8 +100,8 @@ python3 -m verl.trainer.main_ppo \
     data.train_files=$DATA_DIR/train.parquet \
     data.val_files=$DATA_DIR/test.parquet \
     data.train_batch_size=16 \
-    data.max_prompt_length=512 \
-    data.max_response_length=1024 \
+    data.max_prompt_length=$MAX_PROMPT \
+    data.max_response_length=$MAX_RESPONSE \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     actor_rollout_ref.model.path="$RESOLVED_MODEL" \
@@ -116,7 +119,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.4 \
     actor_rollout_ref.rollout.n=4 \
-    actor_rollout_ref.rollout.response_length=1024 \
+    actor_rollout_ref.rollout.response_length=$MAX_RESPONSE \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
     algorithm.use_kl_in_reward=False \
     custom_reward_function.path="$REWARD_PATH" \
@@ -129,7 +132,7 @@ python3 -m verl.trainer.main_ppo \
     trainer.nnodes=1 \
     trainer.save_freq=200 \
     trainer.test_freq=50 \
-    trainer.total_epochs=15 \
+    trainer.total_epochs=$TOTAL_EPOCHS \
     trainer.default_local_dir="$SAVE_DIR"
 
 echo "========================================="
