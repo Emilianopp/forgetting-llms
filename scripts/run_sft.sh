@@ -49,7 +49,8 @@ esac
 
 # --- Per-dataset config ---
 case "$DATASET" in
-    gsm8k|math)  MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
+    gsm8k)       MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
+    math)        MAX_LENGTH=3072; TOTAL_EPOCHS=3 ;;
     triviaqa)    MAX_LENGTH=512;  TOTAL_EPOCHS=3 ;;
     *)           MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
 esac
