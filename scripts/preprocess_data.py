@@ -13,7 +13,27 @@ import argparse
 import os
 import re
 
-from datasets import load_dataset
+from datasets import concatenate_datasets, load_dataset
+
+
+# EleutherAI mirror of hendrycks/competition_math (original was DMCA'd)
+MATH_CONFIGS = [
+    "algebra", "counting_and_probability", "geometry",
+    "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+]
+
+
+def load_math_dataset():
+    """Load MATH dataset from EleutherAI mirror, combining all subject configs."""
+    train_parts, test_parts = [], []
+    for config in MATH_CONFIGS:
+        ds = load_dataset("EleutherAI/hendrycks_math", config)
+        train_parts.append(ds["train"])
+        test_parts.append(ds["test"])
+    return {
+        "train": concatenate_datasets(train_parts),
+        "test": concatenate_datasets(test_parts),
+    }
 
 
 def extract_gsm8k_answer(solution: str) -> str:
@@ -148,7 +168,7 @@ def preprocess_gsm8k_sft(output_dir: str):
 
 def preprocess_math_sft(output_dir: str):
     """Preprocess MATH (hendrycks) into VeRL SFT parquet format."""
-    dataset = load_dataset("hendrycks/competition_math")
+    dataset = load_math_dataset()
 
     def make_map_fn(split: str):
         def process(example):
@@ -304,7 +324,7 @@ def preprocess_triviaqa_sft(output_dir: str, max_train: int = 7500, max_test: in
 
 def preprocess_math(output_dir: str):
     """Preprocess MATH (hendrycks) into VeRL parquet format."""
-    dataset = load_dataset("hendrycks/competition_math")
+    dataset = load_math_dataset()
 
     def make_map_fn(split: str):
         def process(example):
