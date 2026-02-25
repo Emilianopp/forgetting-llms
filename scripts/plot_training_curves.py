@@ -187,19 +187,22 @@ def plot_grpo_curves(runs: dict, output_dir: Path):
 
 
 def plot_combined_summary(sft_runs: dict, grpo_runs: dict, output_dir: Path):
-    """Combined 2-panel: SFT loss + GRPO score side by side."""
+    """Combined 2-panel: SFT loss + GRPO score side by side.
+
+    Same color per dataset across both panels. Labels include method name.
+    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
 
-    sft_colors = {"gsm8k": "#2ecc71", "math": "#e74c3c", "triviaqa": "#3498db"}
-    grpo_colors = {"gsm8k": "#e74c3c", "math": "#9b59b6", "triviaqa": "#f39c12"}
+    DATASET_COLORS = {"gsm8k": "#2ecc71", "math": "#e74c3c", "triviaqa": "#3498db"}
 
     for name, data in sft_runs.items():
         if data["steps"]:
+            c = DATASET_COLORS.get(name, "gray")
             sm = smooth(data["loss"], 20)
             offset = len(data["loss"]) - len(sm)
-            ax1.plot(data["steps"], data["loss"], alpha=0.15, color=sft_colors.get(name, "gray"))
-            ax1.plot(data["steps"][offset:], sm, color=sft_colors.get(name, "gray"),
-                     linewidth=2, label=f"{name.upper()}")
+            ax1.plot(data["steps"], data["loss"], alpha=0.15, color=c)
+            ax1.plot(data["steps"][offset:], sm, color=c,
+                     linewidth=2, label=f"GT-SFT {name.upper()}")
     ax1.set_xlabel("Step", fontsize=12)
     ax1.set_ylabel("Loss", fontsize=12)
     ax1.set_title("GT-SFT Training Loss", fontsize=13)
@@ -208,11 +211,12 @@ def plot_combined_summary(sft_runs: dict, grpo_runs: dict, output_dir: Path):
 
     for name, data in grpo_runs.items():
         if data["steps"]:
+            c = DATASET_COLORS.get(name, "gray")
             sm = smooth(data["score"], 10)
             offset = len(data["score"]) - len(sm)
-            ax2.plot(data["steps"], data["score"], alpha=0.15, color=grpo_colors.get(name, "gray"))
-            ax2.plot(data["steps"][offset:], sm, color=grpo_colors.get(name, "gray"),
-                     linewidth=2, label=f"{name.upper()}")
+            ax2.plot(data["steps"], data["score"], alpha=0.15, color=c)
+            ax2.plot(data["steps"][offset:], sm, color=c,
+                     linewidth=2, label=f"GRPO {name.upper()}")
     ax2.set_xlabel("Step", fontsize=12)
     ax2.set_ylabel("Mean Score", fontsize=12)
     ax2.set_title("GRPO Reward (Accuracy)", fontsize=13)
