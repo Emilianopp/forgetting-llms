@@ -29,7 +29,14 @@ from vllm import LLM, SamplingParams
 REPO_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, REPO_DIR)
 
-from src.rewards.math_reward import compute_score
+from src.rewards.unified_reward import compute_score
+
+
+# EleutherAI mirror of hendrycks/competition_math (original was DMCA'd)
+MATH_CONFIGS = [
+    "algebra", "counting_and_probability", "geometry",
+    "intermediate_algebra", "number_theory", "prealgebra", "precalculus",
+]
 
 
 def load_questions(dataset_name: str) -> list[dict]:
@@ -56,7 +63,13 @@ def load_questions(dataset_name: str) -> list[dict]:
         return questions
 
     elif dataset_name == "math":
-        dataset = load_dataset("hendrycks/competition_math", split="train")
+        from datasets import concatenate_datasets
+        train_parts = []
+        for config in MATH_CONFIGS:
+            ds = load_dataset("EleutherAI/hendrycks_math", config)
+            train_parts.append(ds["train"])
+        dataset = concatenate_datasets(train_parts)
+
         questions = []
         idx = 0
         for example in dataset:
@@ -79,6 +92,30 @@ def load_questions(dataset_name: str) -> list[dict]:
                 "original_question": problem,
             })
             idx += 1
+        return questions
+
+    elif dataset_name == "triviaqa":
+        dataset = load_dataset("mandarjoshi/trivia_qa", "rc.nocontext", split="train")
+        # Subsample to 7500 like in preprocess_data.py
+        if len(dataset) > 7500:
+            dataset = dataset.shuffle(seed=42).select(range(7500))
+
+        questions = []
+        for i, example in enumerate(dataset):
+            question = example["question"]
+            aliases = example["answer"]["aliases"]
+            ground_truth = "|||".join(aliases) if aliases else example["answer"]["value"]
+
+            prompt = (
+                f"{question}\n\n"
+                "Answer the question directly. Put your final answer after 'The answer is: '."
+            )
+            questions.append({
+                "idx": i,
+                "prompt": prompt,
+                "ground_truth": ground_truth,
+                "original_question": question,
+            })
         return questions
 
     else:
@@ -165,9 +202,9 @@ def finalize_output(checkpoint_path: str, output_dir: str, dataset_name: str):
     print(f"Saved {len(train_df)} training examples to {train_path}")
 
     # Create test split from original test set
+    test_records = []
     if dataset_name == "gsm8k":
         test_dataset = load_dataset("openai/gsm8k", "main", split="test")
-        test_records = []
         for example in test_dataset:
             question = example["question"]
             raw_answer = example["answer"]
@@ -175,19 +212,51 @@ def finalize_output(checkpoint_path: str, output_dir: str, dataset_name: str):
             numeric_answer = match.group(1).replace(",", "").strip() if match else ""
             text = re.sub(r"\n?####\s*(-?[\d,]+\.?\d*)\s*$", "", raw_answer).strip()
             formatted_answer = f"{text}\n\\boxed{{{numeric_answer}}}"
-
             prompt = (
                 f"{question}\n\n"
                 "Please reason step by step, and put your final answer within \\boxed{}."
             )
             test_records.append({
                 "data_source": dataset_name,
-                "extra_info": {
-                    "question": prompt,
-                    "answer": formatted_answer,
-                    "split": "test",
-                },
+                "extra_info": {"question": prompt, "answer": formatted_answer, "split": "test"},
             })
+
+    elif dataset_name == "math":
+        from datasets import concatenate_datasets
+        test_parts = []
+        for config in MATH_CONFIGS:
+            ds = load_dataset("EleutherAI/hendrycks_math", config)
+            test_parts.append(ds["test"])
+        test_dataset = concatenate_datasets(test_parts)
+        for example in test_dataset:
+            problem = example["problem"]
+            solution_text = example["solution"]
+            prompt = (
+                f"{problem}\n\n"
+                "Please reason step by step, and put your final answer within \\boxed{}."
+            )
+            test_records.append({
+                "data_source": dataset_name,
+                "extra_info": {"question": prompt, "answer": solution_text, "split": "test"},
+            })
+
+    elif dataset_name == "triviaqa":
+        test_dataset = load_dataset("mandarjoshi/trivia_qa", "rc.nocontext", split="validation")
+        if len(test_dataset) > 1500:
+            test_dataset = test_dataset.shuffle(seed=42).select(range(1500))
+        for example in test_dataset:
+            question = example["question"]
+            primary_answer = example["answer"]["value"]
+            prompt = (
+                f"{question}\n\n"
+                "Answer the question directly. Put your final answer after 'The answer is: '."
+            )
+            test_records.append({
+                "data_source": dataset_name,
+                "extra_info": {"question": prompt, "answer": f"The answer is: {primary_answer}", "split": "test"},
+            })
+
+    if test_records:
         test_df = pd.DataFrame(test_records)
         test_path = os.path.join(output_dir, "test.parquet")
         test_df.to_parquet(test_path)
@@ -198,7 +267,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate teacher solutions for SF-SFT")
     parser.add_argument("--model", type=str, default="Qwen/Qwen3-32B",
                         help="Teacher model (HF ID or local path)")
-    parser.add_argument("--dataset", type=str, default="gsm8k", choices=["gsm8k", "math"],
+    parser.add_argument("--dataset", type=str, default="gsm8k", choices=["gsm8k", "math", "triviaqa"],
                         help="Dataset to generate solutions for")
     parser.add_argument("--n_samples", type=int, default=4,
                         help="Number of candidate solutions per question")
