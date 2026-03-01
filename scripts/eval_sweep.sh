@@ -27,7 +27,7 @@
 #SBATCH --output=slurm_logs/%j_%x.out
 #SBATCH --error=slurm_logs/%j_%x.err
 
-set -euxo pipefail
+set -uxo pipefail  # no -e: allow partial completion on timeout
 
 # --- Environment ---
 module load python/3.10
