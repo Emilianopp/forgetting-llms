@@ -200,7 +200,18 @@ def plot_per_benchmark_comparison(methods_data, output_dir):
 
 
 def plot_absolute_scores_comparison(methods_data, output_dir):
-    """Plot average absolute benchmark score vs step."""
+    """Plot average absolute benchmark score vs step (common benchmarks only)."""
+    # Find benchmarks present in ALL methods' baselines for fair comparison
+    common_benchmarks = None
+    for method_name, (steps, score_dicts) in methods_data.items():
+        if not score_dicts:
+            continue
+        present = {b for b in BENCHMARKS if score_dicts[0].get(b) is not None}
+        common_benchmarks = present if common_benchmarks is None else common_benchmarks & present
+    if not common_benchmarks:
+        common_benchmarks = set(BENCHMARKS)
+    common_benchmarks = sorted(common_benchmarks, key=BENCHMARKS.index)
+
     fig, ax = plt.subplots(figsize=(10, 6))
 
     for method_name, (steps, score_dicts) in methods_data.items():
@@ -208,7 +219,7 @@ def plot_absolute_scores_comparison(methods_data, output_dir):
             continue
         avg_scores = []
         for sd in score_dicts:
-            vals = [sd.get(b) for b in BENCHMARKS if sd.get(b) is not None]
+            vals = [sd[b] for b in common_benchmarks if sd.get(b) is not None]
             avg_scores.append(sum(vals) / len(vals) if vals else 0)
 
         style = METHOD_STYLES.get(method_name, {"color": "gray", "marker": "x", "label": method_name})
@@ -218,13 +229,62 @@ def plot_absolute_scores_comparison(methods_data, output_dir):
 
     ax.set_xlabel("Training Step", fontsize=12)
     ax.set_ylabel("Avg Benchmark Accuracy", fontsize=12)
-    ax.set_title("Average Benchmark Score: Method Comparison", fontsize=13)
+    ax.set_title(f"Average Benchmark Accuracy: Method Comparison ({len(common_benchmarks)} benchmarks)", fontsize=13)
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     fig.savefig(output_dir / "absolute_scores_comparison.png", dpi=150)
     plt.close(fig)
     print(f"Saved: {output_dir / 'absolute_scores_comparison.png'}")
+
+
+def plot_per_benchmark_absolute(methods_data, output_dir):
+    """Plot per-benchmark ABSOLUTE accuracy (not delta) for all methods overlaid."""
+    n_benchmarks = len(BENCHMARKS)
+    ncols = 4
+    nrows = (n_benchmarks + ncols - 1) // ncols
+    fig, axes = plt.subplots(nrows, ncols, figsize=(20, 5 * nrows), sharey=False)
+    axes = axes.flatten()
+
+    for idx, bench in enumerate(BENCHMARKS):
+        ax = axes[idx]
+        has_data = False
+        for method_name, (steps, score_dicts) in methods_data.items():
+            if not score_dicts:
+                continue
+            valid_steps = []
+            values = []
+            for s, sd in zip(steps, score_dicts):
+                v = sd.get(bench)
+                if v is not None:
+                    valid_steps.append(s)
+                    values.append(v)
+            if values:
+                has_data = True
+                style = METHOD_STYLES.get(method_name, {"color": "gray", "marker": "x", "label": method_name})
+                ax.plot(valid_steps, values, f"{style['marker']}-",
+                        color=style["color"], label=style["label"],
+                        linewidth=1.5, markersize=5)
+
+        ax.set_title(bench, fontsize=11, fontweight="bold")
+        ax.set_ylim(bottom=0)
+        ax.grid(True, alpha=0.3)
+        if idx == 0:
+            ax.legend(fontsize=8)
+        if not has_data:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=12, color="gray")
+
+    for idx in range(n_benchmarks, len(axes)):
+        axes[idx].set_visible(False)
+
+    fig.supxlabel("Training Step", fontsize=12)
+    fig.supylabel("Accuracy", fontsize=12)
+    fig.suptitle("Per-Benchmark Accuracy: Method Comparison", fontsize=14, y=1.01)
+    fig.tight_layout()
+    fig.savefig(output_dir / "per_benchmark_accuracy_comparison.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {output_dir / 'per_benchmark_accuracy_comparison.png'}")
 
 
 def plot_heatmap_comparison(methods_data, output_dir):
@@ -458,6 +518,7 @@ def main():
                 plot_avg_forgetting_comparison(ds_methods, ds_dir)
                 plot_per_benchmark_comparison(ds_methods, ds_dir)
                 plot_absolute_scores_comparison(ds_methods, ds_dir)
+                plot_per_benchmark_absolute(ds_methods, ds_dir)
                 plot_heatmap_comparison(ds_methods, ds_dir)
                 write_comparison_summary(ds_methods, ds_dir)
         else:
@@ -490,6 +551,7 @@ def main():
     plot_avg_forgetting_comparison(methods_data, output_dir)
     plot_per_benchmark_comparison(methods_data, output_dir)
     plot_absolute_scores_comparison(methods_data, output_dir)
+    plot_per_benchmark_absolute(methods_data, output_dir)
     plot_heatmap_comparison(methods_data, output_dir)
     write_comparison_summary(methods_data, output_dir)
 
