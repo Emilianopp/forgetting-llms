@@ -48,12 +48,22 @@ case "$DATA_VARIANT" in
 esac
 
 # --- Per-dataset config ---
+# SF-SFT uses Qwen3-32B teacher with <think> mode → longer sequences
 case "$DATASET" in
     gsm8k)       MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
     math)        MAX_LENGTH=3072; TOTAL_EPOCHS=3 ;;
     triviaqa)    MAX_LENGTH=512;  TOTAL_EPOCHS=3 ;;
     *)           MAX_LENGTH=2048; TOTAL_EPOCHS=3 ;;
 esac
+
+# Override for SF/CF variants (teacher solutions with <think> are longer)
+if [[ "$DATA_VARIANT" == "sf" || "$DATA_VARIANT" == "cf" ]]; then
+    case "$DATASET" in
+        gsm8k)    MAX_LENGTH=2304 ;;
+        math)     MAX_LENGTH=3200 ;;
+        triviaqa) MAX_LENGTH=2176 ;;
+    esac
+fi
 
 SAVE_DIR=~/scratch/forgetting-llms/checkpoints/${EXPERIMENT_NAME}
 REPO_DIR=$HOME/forgetting-llms
