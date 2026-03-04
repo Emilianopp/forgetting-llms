@@ -1,6 +1,6 @@
 # Experiment Status Tracker
 
-**Last updated:** 2026-03-02
+**Last updated:** 2026-03-03
 **WandB:** [forgetting-llms project](https://wandb.ai/laurent-charlin/forgetting-llms)
 **Repo:** [github.com/Emilianopp/forgetting-llms](https://github.com/Emilianopp/forgetting-llms)
 
@@ -29,7 +29,7 @@
 | MMLU | Broad knowledge (57 subjects) | acc |
 | IFEval | Instruction following | prompt_level_strict_acc |
 
-All 0-shot via `lm-evaluation-harness`. ~1.5h per checkpoint on 1x A100.
+All 0-shot via `lm-evaluation-harness`. ~1.5h per checkpoint on 1x A100/L40S.
 
 ### Training Datasets
 
@@ -95,20 +95,30 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 
 ### Eval Sweeps (10 benchmarks)
 
-| Run | Total Ckpts | Done | Status | Notes |
-|-----|-------------|------|--------|-------|
-| GRPO GSM8K | 6 + base | **7/7** | **COMPLETE** (8-bench) | Old run, 8 benchmarks only |
-| GRPO GSM8K | 6 + base | 3/7 | QUEUED | 10-bench re-eval (job 8847627) |
-| GT-SFT GSM8K | 15 + base | 4/16 | QUEUED | Resumable (job 8847628) |
-| GT-SFT MATH | 14 + base | 2/15 | RUNNING | 8840042 (step 1000 in progress), then 8847629 |
-| GT-SFT TriviaQA | 15 + base | 0/16 | QUEUED | Resumable (job 8847630) |
-| GRPO MATH | 4 + base | 0/5 | QUEUED | Resumable (job 8847631) |
-| GRPO TriviaQA | 5 + base | 0/6 | QUEUED | Resumable (job 8847632) |
-| SF-SFT GSM8K | — | — | BLOCKED | Training not started |
-| SF-SFT MATH | — | — | BLOCKED | Training not started |
-| SF-SFT TriviaQA | — | — | BLOCKED | Training not started |
+| Run | Total Ckpts | Done | Status | GPU | Notes |
+|-----|-------------|------|--------|-----|-------|
+| GRPO GSM8K | 6 + base | **7/7** | **COMPLETE** | A100 | 10 benchmarks |
+| GT-SFT GSM8K | 6 + base | **6/6** | **COMPLETE** | A100 | 8 benchmarks (steps 0, 87, 100, 1000–1200) |
+| GT-SFT MATH | 14 + base | 3/15 | **RUNNING** | L40S | Job 8864513 on cn-l037 |
+| GRPO MATH | 4 + base | 1/5 | **RUNNING** | L40S | Job 8864514 on cn-l054 |
+| GT-SFT TriviaQA | 15 + base | 0/16 | QUEUED | L40S | Job 8864515, depends on GT-SFT MATH |
+| GRPO TriviaQA | 5 + base | 0/6 | QUEUED | L40S | Job 8864516, depends on GRPO MATH |
+| SF-SFT GSM8K | — | — | BLOCKED | — | Training not started |
+| SF-SFT MATH | — | — | BLOCKED | — | Training not started |
+| SF-SFT TriviaQA | — | — | BLOCKED | — | Training not started |
 
-Eval sweeps auto-resubmit on timeout via `eval_sweep_resumable.sh`.
+**Task Accuracy Evals** (in-distribution, via vLLM + unified_reward.py):
+
+| Run | Status | Notes |
+|-----|--------|-------|
+| GRPO GSM8K | **COMPLETE** | Base: 59.0% → Step 1200: 86.7% |
+| GT-SFT GSM8K | **COMPLETE** | Base: 59.0% → Step 1401: 54.7% (drops!) |
+| GT-SFT MATH | QUEUED | Job 8864517 |
+| GRPO MATH | QUEUED | Job 8864518 |
+| GT-SFT TriviaQA | QUEUED | Job 8864519 |
+| GRPO TriviaQA | QUEUED | Job 8864520 |
+
+All new jobs on L40S GPUs (46GB VRAM, validated). 2 jobs run in parallel (QOS: 8 CPU, 2 GPU limit).
 
 ---
 
@@ -168,29 +178,35 @@ Eval sweeps auto-resubmit on timeout via `eval_sweep_resumable.sh`.
 
 *15-checkpoint eval with 10 benchmarks in progress (4/16 done).*
 
-### GT-SFT MATH — Preliminary (10 benchmarks, step 100 only)
+### GT-SFT MATH — Forgetting (10 benchmarks, steps 0–1000)
 
-> Early results: GT-SFT on MATH also shows improvement on most benchmarks, with IFEval drop.
+> GT-SFT on MATH shows **no forgetting** — improvement on 9/10 benchmarks. Only IFEval drops.
 
-![GT-SFT MATH Forgetting Curves](figures/eval_results/gt_sft_math_forgetting_curves.png)
+![GT-SFT MATH Forgetting Curves](figures/eval_results/gt_sft_math/forgetting_curves.png)
 
-| Benchmark | Base | Step 100 | Delta |
-|-----------|------|----------|-------|
-| arc_challenge | 0.4309 | 0.4420 | +0.0111 |
-| arc_easy | 0.7003 | 0.7146 | +0.0143 |
-| hellaswag | 0.6045 | 0.6126 | +0.0081 |
-| winogrande | 0.6069 | 0.6180 | +0.0111 |
-| piqa | 0.7247 | 0.7280 | +0.0033 |
-| boolq | 0.7771 | 0.7878 | +0.0107 |
-| openbookqa | 0.3720 | 0.3800 | +0.0080 |
-| truthfulqa_mc2 | 0.4597 | 0.4577 | -0.0020 |
-| mmlu | 0.5546 | 0.5681 | +0.0135 |
-| ifeval | 0.1756 | 0.1368 | **-0.0388** |
-| **Average** | | | **+0.0039** |
+![GT-SFT MATH Delta](figures/eval_results/gt_sft_math/delta_from_baseline.png)
 
-*More checkpoints evaluating — step 1000 in progress.*
+![GT-SFT MATH Heatmap](figures/eval_results/gt_sft_math/heatmap.png)
 
-### Comparison: GRPO vs GT-SFT on GSM8K
+| Benchmark | Base | Step 100 | Step 1000 | Delta (1000) |
+|-----------|------|----------|-----------|-------------|
+| arc_challenge | 0.4309 | 0.4420 | 0.4505 | **+0.0196** |
+| arc_easy | 0.7003 | 0.7146 | 0.7269 | **+0.0265** |
+| hellaswag | 0.6045 | 0.6126 | 0.6266 | **+0.0221** |
+| winogrande | 0.6069 | 0.6180 | 0.6219 | **+0.0150** |
+| piqa | 0.7247 | 0.7280 | 0.7361 | **+0.0114** |
+| boolq | 0.7771 | 0.7878 | 0.7994 | **+0.0223** |
+| openbookqa | 0.3720 | 0.3800 | 0.3860 | **+0.0140** |
+| truthfulqa_mc2 | 0.4597 | 0.4577 | 0.4668 | **+0.0071** |
+| mmlu | 0.5546 | 0.5681 | 0.5688 | **+0.0142** |
+| ifeval | 0.1756 | 0.1368 | 0.1571 | **-0.0185** |
+| **Average** | | | | **+0.0134** |
+
+*12 more checkpoints evaluating (job 8864513 on L40S).*
+
+### Comparison: GRPO vs GT-SFT (GSM8K + MATH)
+
+Three methods compared: GRPO on GSM8K, GT-SFT on GSM8K, GT-SFT on MATH.
 
 #### Benchmark Accuracy (absolute scores per step)
 
@@ -206,12 +222,26 @@ Eval sweeps auto-resubmit on timeout via `eval_sweep_resumable.sh`.
 
 ![Comparison Heatmap](figures/comparison/heatmap_comparison.png)
 
+#### Cross-Dataset Summary
+
+![Cross-Dataset Summary](figures/comparison_cross/cross_dataset_summary.png)
+
+#### Task Accuracy (In-Distribution)
+
+| Method | Dataset | Base | Best Step | Best Acc | Trend |
+|--------|---------|------|-----------|----------|-------|
+| GRPO | GSM8K | 59.0% | 600 | **87.0%** | +28pp, huge gain |
+| GT-SFT | GSM8K | 59.0% | 87 | 56.6% | -4pp, drops and stays low |
+| GRPO | MATH | — | — | — | Eval pending |
+| GT-SFT | MATH | — | — | — | Eval pending |
+
 **Key findings:**
-- **GT-SFT improves benchmark accuracy** — scores go UP across all 8 benchmarks (+0.0179 avg at step 1000)
-- **GRPO degrades benchmark accuracy** — mild forgetting (-0.0045 avg at step 1200), worst on BoolQ (-0.022) and TruthfulQA (-0.016)
-- Both learn the same task (GSM8K math), suggesting **the training method, not the data, drives forgetting**
-- MMLU and IFEval (10-bench) show no GRPO forgetting — forgetting concentrates on simpler benchmarks
-- GT-SFT accuracy increases monotonically through step 1000; GRPO accuracy drops early then partially recovers
+- **GT-SFT improves OOD benchmarks** — scores go UP on both GSM8K (+0.019 avg) and MATH (+0.013 avg). No forgetting.
+- **GRPO degrades OOD benchmarks** — mild forgetting on GSM8K (-0.008 avg), worst on BoolQ (-0.022) and TruthfulQA (-0.016)
+- **GRPO dramatically improves task accuracy** (59% → 87% on GSM8K), while **GT-SFT drops task accuracy** (59% → 55%)
+- The GT-SFT task accuracy drop is likely a **generation format mismatch**: base model uses `<think>` reasoning mode which SFT training disrupts
+- GT-SFT on MATH shows same pattern as GSM8K: OOD benchmarks improve, IFEval is the only one that drops
+- **The training method, not the data, drives forgetting**: same GSM8K data, opposite forgetting outcomes
 
 ---
 
@@ -235,22 +265,27 @@ All data in `~/scratch/forgetting-llms/data/`.
 
 ## Cluster Notes
 
-- **QOS limit**: ~96G total memory across running+pending jobs on `main` partition
-- **Eval speed**: ~1.5h per checkpoint (10 benchmarks, batch_size=1, 1x A100)
+- **QOS limit (main)**: cpu=8, gpu=2, mem=48G per user — max 2 concurrent eval jobs
+- **L40S validated**: Smoke test passed (CUDA, transformers, vLLM, lm_eval). 46GB VRAM, compute 8.9, batch_size=1 for evals
+- **Eval speed**: ~1.5h per checkpoint (10 benchmarks, batch_size=1, 1x A100 or L40S)
+- **Task accuracy eval**: ~20-30 min per experiment (all checkpoints, vLLM generation + grading)
 - **Trajectory gen**: MATH ~6.5h, TriviaQA ~1.7h, GSM8K ~3.5h (Qwen3-32B, TP=2)
 - **SFT training**: ~2-3h for 3 epochs (~1400 steps), 2x A100
 - **GRPO training**: ~4-8h for 15 epochs, 2x A100
-- Resumable evals via `eval_sweep_resumable.sh` (Slurm signal + auto-resubmit)
 - Jobs chained via `--dependency=afterany` to stay within QOS
+- All new eval jobs use L40S (`--gres=gpu:l40s:1 --cpus-per-task=4`)
 
 ---
 
 ## TODO
 
-- [ ] Finish 6 eval sweeps (10 benchmarks) — running now, auto-resume
+- [ ] Finish 4 remaining eval sweeps (GT-SFT MATH, GRPO MATH, GT-SFT TriviaQA, GRPO TriviaQA) — running on L40S
+- [ ] Finish 4 remaining task accuracy evals — queued, chained after sweeps
+- [x] Validate L40S GPUs for eval pipeline
+- [ ] Investigate GT-SFT task accuracy drop (59% → 55%) — likely `<think>` mode disruption
 - [ ] Submit SF-SFT training (3 datasets) — data ready
 - [ ] Submit SF-SFT eval sweeps (3 runs)
-- [ ] Regenerate comparison plots with full 10-benchmark data
+- [ ] Regenerate comparison plots with all 6 experiments complete
 - [ ] Start Phase 2: Qwen3-4B (repeat all experiments)
 - [ ] CF-SFT: need Llama-3.1-70B trajectories
 - [ ] SELF/SPIN: needs implementation
