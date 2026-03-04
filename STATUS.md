@@ -228,6 +228,8 @@ Three methods compared: GRPO on GSM8K, GT-SFT on GSM8K, GT-SFT on MATH.
 
 #### Task Accuracy (In-Distribution)
 
+![Task Accuracy Comparison GSM8K](figures/comparison/task_accuracy_comparison_gsm8k.png)
+
 | Method | Dataset | Base | Best Step | Best Acc | Trend |
 |--------|---------|------|-----------|----------|-------|
 | GRPO | GSM8K | 59.0% | 600 | **87.0%** | +28pp, huge gain |
