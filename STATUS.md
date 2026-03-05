@@ -1,6 +1,6 @@
 # Experiment Status Tracker
 
-**Last updated:** 2026-03-03
+**Last updated:** 2026-03-05
 **WandB:** [forgetting-llms project](https://wandb.ai/laurent-charlin/forgetting-llms)
 **Repo:** [github.com/Emilianopp/forgetting-llms](https://github.com/Emilianopp/forgetting-llms)
 
@@ -95,142 +95,51 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 
 ### Eval Sweeps (10 benchmarks)
 
-| Run | Total Ckpts | Done | Status | GPU | Notes |
-|-----|-------------|------|--------|-----|-------|
-| GRPO GSM8K | 6 + base | **7/7** | **COMPLETE** | A100 | 10 benchmarks |
-| GT-SFT GSM8K | 6 + base | **6/6** | **COMPLETE** | A100 | 8 benchmarks (steps 0, 87, 100, 1000–1200) |
-| GRPO MATH | 4 + base | **4/5** | **COMPLETE** | L40S | 10 benchmarks (step 800 missing results JSON) |
-| GT-SFT MATH | 14 + base | 6/15 | TIMED OUT | L40S | Resumable, 8 more checkpoints needed |
-| GT-SFT TriviaQA | 15 + base | 0/16 | **RUNNING** | L40S | Job 8864515 |
-| GRPO TriviaQA | 5 + base | 0/6 | **RUNNING** | L40S | Job 8864516 |
-| SF-SFT GSM8K | — | — | QUEUED | L40S | Training job 8870423, starts after evals |
-| SF-SFT MATH | — | — | QUEUED | L40S | Training job 8870424 |
-| SF-SFT TriviaQA | — | — | QUEUED | L40S | Training job 8870425 |
+| Run | OOD Eval | Task Acc | Status | Notes |
+|-----|----------|----------|--------|-------|
+| GRPO GSM8K | **7/7** | **Done** | **COMPLETE** | 10 benchmarks |
+| GT-SFT GSM8K | **6/6** | **Done** | **COMPLETE** | 8 benchmarks |
+| GRPO MATH | **4/5** | **Done** | **COMPLETE** | step 800 missing JSON |
+| GT-SFT MATH | 6/15 | **Done** | PARTIAL | 8 ckpts still need OOD eval |
+| GRPO TriviaQA | 4/6 | **Done** | PARTIAL | step 600, 800 missing |
+| GT-SFT TriviaQA | 4/16 | **Done** | PARTIAL | 11 ckpts still need OOD eval |
+| SF-SFT GSM8K | — | — | **TRAINED** | 14 ckpts, needs eval |
+| SF-SFT MATH | — | — | **TRAINED** | 6 ckpts, needs eval |
+| SF-SFT TriviaQA | — | — | **TRAINED** | 13 ckpts, needs eval |
 
-**Task Accuracy Evals** (in-distribution, via vLLM + unified_reward.py):
-
-| Run | Status | Notes |
-|-----|--------|-------|
-| GRPO GSM8K | **COMPLETE** | Base: 59.0% → Step 1200: 86.7% |
-| GT-SFT GSM8K | **COMPLETE** | Base: 59.0% → Step 1401: 54.7% (drops!) |
-| GT-SFT MATH | QUEUED | Job 8864517 |
-| GRPO MATH | QUEUED | Job 8864518 |
-| GT-SFT TriviaQA | QUEUED | Job 8864519 |
-| GRPO TriviaQA | QUEUED | Job 8864520 |
-
-All new jobs on L40S GPUs (46GB VRAM, validated). 2 jobs run in parallel (QOS: 8 CPU, 2 GPU limit).
+All eval/training jobs on L40S GPUs (46GB VRAM, validated). QOS: cpu=8, gpu=2 per user.
 
 ---
 
 ## Results
 
-### GRPO GSM8K — Forgetting (8 benchmarks, complete; 10 benchmarks, partial)
+### Summary: OOD Forgetting (avg delta from baseline)
 
-> GRPO on GSM8K causes mild but consistent forgetting across most benchmarks.
+| Method | GSM8K | MATH | TriviaQA |
+|--------|-------|------|----------|
+| **GRPO** | **-0.0076** | +0.0028 | **-0.0026** |
+| **GT-SFT** | +0.0188 | +0.0117 | +0.0120 |
 
-**8-benchmark results (complete, steps 200–1200):**
+### Summary: Task Accuracy (in-distribution)
 
-![GRPO GSM8K Forgetting Curves](figures/eval_results/grpo_gsm8k_forgetting_curves.png)
+![Task Accuracy All Datasets](figures/comparison/task_accuracy_comparison_all.png)
 
-![GRPO GSM8K Heatmap](figures/eval_results/grpo_gsm8k_heatmap.png)
+| Method | Dataset | Base | Best | Best Step | Trend |
+|--------|---------|------|------|-----------|-------|
+| GRPO | GSM8K | 59.0% | **87.0%** | 600 | +28pp |
+| GT-SFT | GSM8K | 59.0% | 56.6% | 200 | -4pp, drops |
+| GRPO | MATH | 11.1% | **65.1%** | 800 | +54pp |
+| GT-SFT | MATH | 11.1% | 28.9% | 300 | +18pp, plateaus |
+| GRPO | TriviaQA | 38.4% | **99.7%** | 1000 | +61pp, saturates |
+| GT-SFT | TriviaQA | 38.1% | 37.4% | 600 | flat, no gain |
 
-![GRPO GSM8K Avg Forgetting](figures/eval_results/grpo_gsm8k_avg_forgetting.png)
+### Comparison: All Methods (6 runs × 3 datasets)
 
-| Metric | Value |
-|--------|-------|
-| Avg forgetting (8 benchmarks) | **-0.0076** |
-| Worst benchmark | BoolQ (-0.0223) |
-| 2nd worst | TruthfulQA (-0.0157) |
-| Task accuracy (step 1200) | 87.4% |
+#### Forgetting (delta from baseline)
 
-**10-benchmark results (partial: steps 0, 1000, 1200):**
+![Comparison Avg Forgetting](figures/comparison/avg_forgetting_comparison.png)
 
-![GRPO GSM8K 10-bench Forgetting](figures/eval_results/grpo_gsm8k_10bench_forgetting_curves.png)
-
-![GRPO GSM8K 10-bench Heatmap](figures/eval_results/grpo_gsm8k_10bench_heatmap.png)
-
-| Metric | Value |
-|--------|-------|
-| Avg forgetting (10 benchmarks) | **-0.0045** |
-| MMLU | +0.0016 (no forgetting) |
-| IFEval | +0.0148 (improved) |
-| Worst benchmark | BoolQ (-0.0223) |
-
-### GT-SFT GSM8K — Forgetting (8 benchmarks, steps 0–1000)
-
-> GT-SFT on GSM8K ground truth shows **no forgetting** — consistent improvement across the board.
-
-![GT-SFT GSM8K Forgetting Curves](figures/eval_results/gt_sft_gsm8k_forgetting_curves.png)
-
-![GT-SFT GSM8K Heatmap](figures/eval_results/gt_sft_gsm8k_heatmap.png)
-
-| Benchmark | Base | Step 1000 | Delta |
-|-----------|------|-----------|-------|
-| arc_challenge | 0.4309 | 0.4650 | **+0.0341** |
-| arc_easy | 0.7003 | 0.7416 | **+0.0412** |
-| hellaswag | 0.6045 | 0.6240 | **+0.0195** |
-| winogrande | 0.6069 | 0.6227 | **+0.0158** |
-| piqa | 0.7247 | 0.7291 | **+0.0044** |
-| boolq | 0.7771 | 0.7985 | **+0.0214** |
-| openbookqa | 0.3720 | 0.3780 | **+0.0060** |
-| truthfulqa_mc2 | 0.4597 | 0.4605 | **+0.0007** |
-| **Average** | | | **+0.0179** |
-
-*15-checkpoint eval with 10 benchmarks in progress (4/16 done).*
-
-### GT-SFT MATH — Forgetting (10 benchmarks, steps 0–1000)
-
-> GT-SFT on MATH shows **no forgetting** — improvement on 9/10 benchmarks. Only IFEval drops.
-
-![GT-SFT MATH Forgetting Curves](figures/eval_results/gt_sft_math/forgetting_curves.png)
-
-![GT-SFT MATH Delta](figures/eval_results/gt_sft_math/delta_from_baseline.png)
-
-![GT-SFT MATH Heatmap](figures/eval_results/gt_sft_math/heatmap.png)
-
-| Benchmark | Base | Step 1000 | Step 1300 | Delta (1300) |
-|-----------|------|-----------|-----------|-------------|
-| arc_challenge | 0.4309 | 0.4505 | 0.4522 | **+0.0213** |
-| arc_easy | 0.7003 | 0.7269 | 0.7252 | **+0.0248** |
-| hellaswag | 0.6045 | 0.6266 | 0.6263 | **+0.0218** |
-| winogrande | 0.6069 | 0.6219 | 0.6243 | **+0.0174** |
-| piqa | 0.7247 | 0.7361 | 0.7356 | **+0.0109** |
-| boolq | 0.7771 | 0.7994 | 0.7994 | **+0.0223** |
-| openbookqa | 0.3720 | 0.3860 | 0.3860 | **+0.0140** |
-| truthfulqa_mc2 | 0.4597 | 0.4668 | 0.4669 | **+0.0072** |
-| mmlu | 0.5546 | 0.5688 | 0.5673 | **+0.0127** |
-| ifeval | 0.1756 | 0.1571 | 0.1405 | **-0.0351** |
-| **Average** | | | | **+0.0117** |
-
-*6/14 checkpoints done. 8 more evaluating (job 8864513 timed out, will resume).*
-
-### GRPO MATH — Forgetting (10 benchmarks, steps 0–600, COMPLETE)
-
-> GRPO on MATH shows **essentially no forgetting** — +0.003 avg delta. IFEval actually improves (+0.031).
-
-![GRPO MATH Forgetting Curves](figures/eval_results/grpo_math/forgetting_curves.png)
-
-![GRPO MATH Avg Forgetting](figures/eval_results/grpo_math/average_forgetting.png)
-
-![GRPO MATH Heatmap](figures/eval_results/grpo_math/heatmap.png)
-
-| Benchmark | Base | Step 600 | Delta |
-|-----------|------|----------|-------|
-| arc_challenge | 0.4343 | 0.4343 | 0.0000 |
-| arc_easy | 0.6978 | 0.7066 | **+0.0088** |
-| hellaswag | 0.6044 | 0.6067 | +0.0023 |
-| winogrande | 0.6148 | 0.6077 | -0.0071 |
-| piqa | 0.7214 | 0.7203 | -0.0011 |
-| boolq | 0.7765 | 0.7679 | -0.0086 |
-| openbookqa | 0.3640 | 0.3680 | +0.0040 |
-| truthfulqa_mc2 | 0.4582 | 0.4515 | -0.0067 |
-| mmlu | 0.5550 | 0.5603 | **+0.0053** |
-| ifeval | 0.1664 | 0.1978 | **+0.0314** |
-| **Average** | | | **+0.0028** |
-
-### Comparison: GRPO vs GT-SFT (GSM8K + MATH)
-
-Four methods compared: GRPO GSM8K, GT-SFT GSM8K, GRPO MATH, GT-SFT MATH.
+![Comparison Heatmap](figures/comparison/heatmap_comparison.png)
 
 #### Benchmark Accuracy (absolute scores per step)
 
@@ -238,38 +147,71 @@ Four methods compared: GRPO GSM8K, GT-SFT GSM8K, GRPO MATH, GT-SFT MATH.
 
 ![Average Benchmark Accuracy](figures/comparison/absolute_scores_comparison.png)
 
-#### Forgetting (delta from baseline)
+### Per-Experiment Details
 
-![Comparison Avg Forgetting](figures/comparison/avg_forgetting_comparison.png)
+<details>
+<summary>GRPO GSM8K (7 checkpoints, 10 benchmarks)</summary>
 
-![Comparison Per Benchmark](figures/comparison/per_benchmark_comparison.png)
+![GRPO GSM8K Forgetting](figures/eval_results/grpo_gsm8k_forgetting_curves.png)
+![GRPO GSM8K Heatmap](figures/eval_results/grpo_gsm8k_heatmap.png)
 
-![Comparison Heatmap](figures/comparison/heatmap_comparison.png)
+Avg forgetting: **-0.0076**. Worst: BoolQ (-0.022), TruthfulQA (-0.016). Task acc: 59% → 87%.
+</details>
 
-#### Cross-Dataset Summary
+<details>
+<summary>GT-SFT GSM8K (6 checkpoints, 8 benchmarks)</summary>
 
-![Cross-Dataset Summary](figures/comparison_cross/cross_dataset_summary.png)
+![GT-SFT GSM8K Forgetting](figures/eval_results/gt_sft_gsm8k_forgetting_curves.png)
+![GT-SFT GSM8K Heatmap](figures/eval_results/gt_sft_gsm8k_heatmap.png)
 
-#### Task Accuracy (In-Distribution)
+Avg delta: **+0.0188**. All benchmarks improve. Task acc: 59% → 55% (format mismatch).
+</details>
 
-![Task Accuracy Comparison GSM8K](figures/comparison/task_accuracy_comparison_gsm8k.png)
+<details>
+<summary>GRPO MATH (4 checkpoints, 10 benchmarks)</summary>
 
-| Method | Dataset | Base | Best Step | Best Acc | Trend |
-|--------|---------|------|-----------|----------|-------|
-| GRPO | GSM8K | 59.0% | 600 | **87.0%** | +28pp, huge gain |
-| GT-SFT | GSM8K | 59.0% | 87 | 56.6% | -4pp, drops and stays low |
-| GRPO | MATH | — | — | — | Eval pending |
-| GT-SFT | MATH | — | — | — | Eval pending |
+![GRPO MATH Forgetting](figures/eval_results/grpo_math/forgetting_curves.png)
+![GRPO MATH Heatmap](figures/eval_results/grpo_math/heatmap.png)
 
-**Key findings:**
-- **GT-SFT improves OOD benchmarks** — scores go UP on both GSM8K (+0.019 avg) and MATH (+0.012 avg). No forgetting.
-- **GRPO on GSM8K causes mild forgetting** (-0.008 avg), worst on BoolQ (-0.022) and TruthfulQA (-0.016)
-- **GRPO on MATH causes no forgetting** (+0.003 avg) — IFEval actually improves (+0.031)
-- **GRPO dramatically improves task accuracy** (59% → 87% on GSM8K), while **GT-SFT drops task accuracy** (59% → 55%)
-- The GT-SFT task accuracy drop is a **generation format mismatch**: base model uses `<think>` reasoning mode which SFT training overwrites with short-form answers
-- **SF-SFT training launched** — uses Qwen3-32B teacher solutions that preserve `<think>` format, should fix the task accuracy issue
-- GT-SFT on MATH shows same pattern as GSM8K: OOD benchmarks improve, IFEval is the only one that drops
-- Forgetting is **method- and dataset-dependent**: GRPO forgets on GSM8K but not MATH
+Avg delta: **+0.0028**. No forgetting. IFEval improves +0.031. Task acc: 11% → 65%.
+</details>
+
+<details>
+<summary>GT-SFT MATH (6/14 checkpoints, 10 benchmarks)</summary>
+
+![GT-SFT MATH Forgetting](figures/eval_results/gt_sft_math/forgetting_curves.png)
+![GT-SFT MATH Heatmap](figures/eval_results/gt_sft_math/heatmap.png)
+
+Avg delta: **+0.0117**. 9/10 benchmarks improve, IFEval drops -0.035. Task acc: 11% → 27%.
+</details>
+
+<details>
+<summary>GRPO TriviaQA (4/5 checkpoints, 10 benchmarks)</summary>
+
+![GRPO TriviaQA Forgetting](figures/eval_results/grpo_triviaqa/forgetting_curves.png)
+![GRPO TriviaQA Heatmap](figures/eval_results/grpo_triviaqa/heatmap.png)
+
+Avg delta: **-0.0026**. Mild forgetting on TruthfulQA (-0.009), IFEval (-0.013). Task acc: 38% → 99.7%.
+</details>
+
+<details>
+<summary>GT-SFT TriviaQA (4/15 checkpoints, 10 benchmarks)</summary>
+
+![GT-SFT TriviaQA Forgetting](figures/eval_results/gt_sft_triviaqa/forgetting_curves.png)
+![GT-SFT TriviaQA Heatmap](figures/eval_results/gt_sft_triviaqa/heatmap.png)
+
+Avg delta: **+0.0120**. Most improve, but BoolQ (-0.013) and TruthfulQA (-0.029) drop. Task acc: 38% → 37% (no gain).
+</details>
+
+### Key Findings
+
+1. **GRPO excels at task learning, GT-SFT does not.** GRPO improves task accuracy dramatically (GSM8K +28pp, MATH +54pp, TriviaQA +61pp). GT-SFT either drops or barely moves task accuracy because it overwrites the model's native `<think>` reasoning with short-form answers.
+
+2. **GT-SFT improves OOD benchmarks, GRPO doesn't.** All 3 GT-SFT runs show +0.01–0.02 avg improvement on OOD benchmarks. GRPO shows mild forgetting on GSM8K (-0.008) and TriviaQA (-0.003), and no change on MATH (+0.003).
+
+3. **Forgetting is method- and dataset-dependent.** GRPO forgets on GSM8K and TriviaQA but not MATH. GT-SFT consistently improves OOD regardless of dataset.
+
+4. **The `<think>` format matters.** GT-SFT trains on short ground-truth solutions that don't use `<think>`, disrupting the model's chain-of-thought reasoning. SF-SFT (now trained, pending eval) uses Qwen3-32B teacher solutions that preserve `<think>` — expected to fix task accuracy while maintaining OOD performance.
 
 ---
 
@@ -307,13 +249,13 @@ All data in `~/scratch/forgetting-llms/data/`.
 
 ## TODO
 
-- [ ] Finish 4 remaining eval sweeps (GT-SFT MATH, GRPO MATH, GT-SFT TriviaQA, GRPO TriviaQA) — running on L40S
-- [ ] Finish 4 remaining task accuracy evals — queued, chained after sweeps
 - [x] Validate L40S GPUs for eval pipeline
-- [ ] Investigate GT-SFT task accuracy drop (59% → 55%) — likely `<think>` mode disruption
-- [ ] Submit SF-SFT training (3 datasets) — data ready
-- [ ] Submit SF-SFT eval sweeps (3 runs)
-- [ ] Regenerate comparison plots with all 6 experiments complete
+- [x] All 6 task accuracy evals (GRPO + GT-SFT × 3 datasets)
+- [x] SF-SFT training (3 datasets) — all complete
+- [ ] SF-SFT eval sweeps (OOD + task accuracy) — needs submission
+- [ ] Finish remaining OOD eval sweeps (GT-SFT MATH 8/14, GT-SFT TriviaQA 11/15, GRPO TriviaQA 1/5)
+- [ ] SF-SFT task accuracy evals
+- [ ] Regenerate comparison plots with all 9 experiments (3 methods × 3 datasets)
 - [ ] Start Phase 2: Qwen3-4B (repeat all experiments)
 - [ ] CF-SFT: need Llama-3.1-70B trajectories
 - [ ] SELF/SPIN: needs implementation
