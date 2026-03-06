@@ -46,19 +46,32 @@ mkdir -p slurm_logs
 mkdir -p "$SAVE_DIR"
 
 # --- Detect and handle FSDP checkpoints ---
-# If MODEL_PATH points to an FSDP checkpoint (has actor/ subdir), merge it first
+# Supports both GRPO layout (actor/ subdir) and SFT layout (model files in step dir)
 RESOLVED_MODEL="$MODEL_PATH"
 if [ -d "$MODEL_PATH/actor" ]; then
+    # GRPO checkpoint layout: actor/ subdirectory
     MERGED_DIR="${MODEL_PATH}/actor_merged"
     if [ ! -d "$MERGED_DIR" ] || [ -z "$(ls -A "$MERGED_DIR" 2>/dev/null)" ]; then
-        echo "Detected FSDP checkpoint. Merging to HF format..."
+        echo "Detected GRPO FSDP checkpoint. Merging to HF format..."
         python -m verl.model_merger merge \
             --backend fsdp \
             --local_dir "$MODEL_PATH/actor" \
             --target_dir "$MERGED_DIR"
     fi
     RESOLVED_MODEL="$MERGED_DIR"
-    echo "Using merged model: $RESOLVED_MODEL"
+    echo "Using merged GRPO model: $RESOLVED_MODEL"
+elif ls "$MODEL_PATH"/model_world_size_*_rank_*.pt &>/dev/null; then
+    # SFT checkpoint layout: model files directly in step dir
+    MERGED_DIR="${MODEL_PATH}/merged_hf"
+    if [ ! -d "$MERGED_DIR" ] || [ -z "$(ls -A "$MERGED_DIR" 2>/dev/null)" ]; then
+        echo "Detected SFT FSDP checkpoint. Merging to HF format..."
+        python -m verl.model_merger merge \
+            --backend fsdp \
+            --local_dir "$MODEL_PATH" \
+            --target_dir "$MERGED_DIR"
+    fi
+    RESOLVED_MODEL="$MERGED_DIR"
+    echo "Using merged SFT model: $RESOLVED_MODEL"
 fi
 
 # --- Preprocess data if needed ---
