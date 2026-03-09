@@ -116,7 +116,7 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 | SF-SFT TriviaQA | 2/13 | **Done** | PARTIAL |
 | GT-SFT+GRPO GSM8K | — | **Done** | Eval submitted |
 | GT-SFT+GRPO MATH | — | **Done** | Eval submitted |
-| GT-SFT+GRPO TriviaQA | — | — | Eval submitted |
+| GT-SFT+GRPO TriviaQA | — | **Done** | Eval submitted |
 | SF-SFT+GRPO GSM8K | — | — | Eval submitted |
 | SF-SFT+GRPO MATH | — | — | Eval submitted |
 | SF-SFT+GRPO TriviaQA | — | — | Eval submitted |
@@ -150,6 +150,7 @@ All SFT variants show positive OOD delta (no forgetting). GRPO shows mild forget
 | GT-SFT | MATH | 11.0% | 28.9% | 300 | +18pp, plateaus |
 | SF-SFT | MATH | 11.0% | 10.8% | 588 | flat (43% teacher) |
 | GRPO | TriviaQA | 38.4% | **99.7%** | 1000 | +61pp, saturates |
+| GT-SFT+GRPO | TriviaQA | 38.4% | 43.6% | 800 | +5pp |
 | SF-SFT | TriviaQA | 38.1% | 39.3% | 400 | +1pp |
 | GT-SFT | TriviaQA | 38.1% | 37.4% | 600 | flat |
 
@@ -219,7 +220,7 @@ Using SFT step 500 (~1 epoch) as warmstart, then GRPO for 15 epochs. Tests wheth
 |-----------|-------|-------|----------------|----------|
 | GT-SFT+GRPO GSM8K | 1,199 | 5 | **83.2%** (step 1000) | Pending |
 | GT-SFT+GRPO MATH | 892 | 4 | **61.6%** (step 800) | Pending |
-| GT-SFT+GRPO TriviaQA | 2,253 | 11 | Pending | Pending |
+| GT-SFT+GRPO TriviaQA | 2,253 | 11 | **43.6%** (step 800) | Pending |
 | SF-SFT+GRPO GSM8K | 1,253 | 6 | Pending | Pending |
 | SF-SFT+GRPO MATH | 987 | 4 | Pending | Pending |
 | SF-SFT+GRPO TriviaQA | 2,201 | 11 | Pending | Pending |
