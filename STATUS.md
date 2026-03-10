@@ -117,9 +117,9 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 | GT-SFT+GRPO GSM8K | — | **Done** | Eval submitted |
 | GT-SFT+GRPO MATH | — | **Done** | Eval submitted |
 | GT-SFT+GRPO TriviaQA | — | **Done** | Eval submitted |
-| SF-SFT+GRPO GSM8K | — | — | Eval submitted |
-| SF-SFT+GRPO MATH | — | — | Eval submitted |
-| SF-SFT+GRPO TriviaQA | — | — | Eval submitted |
+| SF-SFT+GRPO GSM8K | — | **Done** | OOD eval in progress |
+| SF-SFT+GRPO MATH | — | **Done** | OOD eval in progress |
+| SF-SFT+GRPO TriviaQA | — | **Done** | OOD eval in progress |
 
 ---
 
@@ -141,16 +141,19 @@ All SFT variants show positive OOD delta (no forgetting). GRPO shows mild forget
 
 | Method | Dataset | Base | Best | Best Step | Trend |
 |--------|---------|------|------|-----------|-------|
-| GRPO | GSM8K | 59.0% | **87.0%** | 600 | +28pp |
+| SF-SFT+GRPO | GSM8K | 59.0% | **88.9%** | 1200 | +30pp |
+| GRPO | GSM8K | 59.0% | 87.0% | 600 | +28pp |
 | GT-SFT+GRPO | GSM8K | 59.0% | 83.2% | 1000 | +24pp |
 | SF-SFT | GSM8K | 60.0% | 65.9% | 1302 | +6pp, gradual |
 | GT-SFT | GSM8K | 59.0% | 56.6% | 200 | -4pp, drops |
-| GRPO | MATH | 11.0% | **65.1%** | 800 | +54pp |
+| SF-SFT+GRPO | MATH | 11.0% | **65.1%** | 800 | +54pp |
+| GRPO | MATH | 11.0% | 65.1% | 800 | +54pp |
 | GT-SFT+GRPO | MATH | 11.0% | 61.6% | 800 | +51pp |
 | GT-SFT | MATH | 11.0% | 28.9% | 300 | +18pp, plateaus |
 | SF-SFT | MATH | 11.0% | 10.8% | 588 | flat (43% teacher) |
-| GRPO | TriviaQA | 38.4% | **99.7%** | 1000 | +61pp, saturates |
-| GT-SFT+GRPO | TriviaQA | 38.4% | 43.6% | 800 | +5pp |
+| GRPO | TriviaQA | 38.4% | 99.7% | 1000 | +61pp, saturates |
+| SF-SFT+GRPO | TriviaQA | 38.4% | **69.0%** | 2000 | +31pp |
+| GT-SFT+GRPO | TriviaQA | 38.4% | 65.7% | 1400 | +27pp |
 | SF-SFT | TriviaQA | 38.1% | 39.3% | 400 | +1pp |
 | GT-SFT | TriviaQA | 38.1% | 37.4% | 600 | flat |
 
@@ -196,7 +199,7 @@ All SFT variants show positive OOD delta (no forgetting). GRPO shows mild forget
 
 1. **GRPO excels at task learning, SFT methods do not.** GRPO improves task accuracy dramatically (GSM8K +28pp, MATH +54pp, TriviaQA +61pp). GT-SFT either drops or barely moves task accuracy because it overwrites the model's native `<think>` reasoning with short-form answers.
 
-2. **GT-SFT+GRPO nearly matches pure GRPO.** SFT warmstart + GRPO achieves 83% on GSM8K (vs pure GRPO 87%) and 62% on MATH (vs 65%). The SFT warmstart doesn't hurt RL learning much — key question is whether it reduces OOD forgetting (eval pending).
+2. **SF-SFT+GRPO matches or beats pure GRPO on task accuracy.** SF-SFT warmstart + GRPO achieves 88.9% on GSM8K (vs pure GRPO 87.0%), ties on MATH (65.1% vs 65.1%), and reaches 69.0% on TriviaQA (vs GRPO 99.7%). GT-SFT+GRPO slightly trails: 83.2%, 61.6%, 65.7%. Key question: does SFT warmstart reduce OOD forgetting? (eval in progress).
 
 3. **SF-SFT partially recovers task accuracy.** By training on Qwen3-32B teacher solutions that preserve `<think>`, SF-SFT achieves 66% on GSM8K (vs GT-SFT 55%, base 59%). Still far below GRPO (87%). However, SF-SFT fails on MATH (43% teacher pass rate bottleneck).
 
@@ -220,10 +223,10 @@ Using SFT step 500 (~1 epoch) as warmstart, then GRPO for 15 epochs. Tests wheth
 |-----------|-------|-------|----------------|----------|
 | GT-SFT+GRPO GSM8K | 1,199 | 5 | **83.2%** (step 1000) | Pending |
 | GT-SFT+GRPO MATH | 892 | 4 | **61.6%** (step 800) | Pending |
-| GT-SFT+GRPO TriviaQA | 2,253 | 11 | **43.6%** (step 800) | Pending |
-| SF-SFT+GRPO GSM8K | 1,253 | 6 | Pending | Pending |
-| SF-SFT+GRPO MATH | 987 | 4 | Pending | Pending |
-| SF-SFT+GRPO TriviaQA | 2,201 | 11 | Pending | Pending |
+| GT-SFT+GRPO TriviaQA | 2,253 | 11 | **65.7%** (step 1400) | Pending |
+| SF-SFT+GRPO GSM8K | 1,253 | 6 | **88.9%** (step 1200) | Pending |
+| SF-SFT+GRPO MATH | 987 | 4 | **65.1%** (step 800) | Pending |
+| SF-SFT+GRPO TriviaQA | 2,201 | 11 | **69.0%** (step 2000) | Pending |
 
 ---
 
