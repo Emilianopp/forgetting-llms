@@ -1,8 +1,55 @@
 # Experiment Status Tracker
 
-**Last updated:** 2026-03-09
+**Last updated:** 2026-03-11
 **WandB:** [forgetting-llms project](https://wandb.ai/laurent-charlin/forgetting-llms)
 **Repo:** [github.com/Emilianopp/forgetting-llms](https://github.com/Emilianopp/forgetting-llms)
+
+---
+
+## Hyperparameters
+
+### SFT (GT-SFT, SF-SFT)
+
+| Parameter | Value |
+|-----------|-------|
+| Optimizer | AdamW |
+| Learning rate | 1e-5 |
+| LR schedule | Cosine (5% warmup) |
+| Weight decay | 0.01 |
+| Batch size | 16 |
+| Micro batch / GPU | 4 |
+| GPUs | 2x A100 80GB |
+| Epochs | 3 |
+| LoRA rank | 0 (full fine-tuning) |
+| Precision | bf16 (FSDP) |
+| Gradient checkpointing | Yes |
+| Max seq length | 2048 (GSM8K), 3072 (MATH), 512 (TriviaQA) |
+| Save frequency | Every 100 steps |
+
+### GRPO (Online RL)
+
+| Parameter | Value |
+|-----------|-------|
+| Optimizer | AdamW |
+| Learning rate | 1e-6 |
+| Batch size | 16 |
+| Mini-batch size | 16 |
+| Micro batch / GPU | 2 |
+| Group size (n) | 4 |
+| GPUs | 2x A100 80GB |
+| Epochs | 15 |
+| KL penalty | None (use_kl_loss=False) |
+| Entropy coeff | 0 |
+| Rollout engine | vLLM (TP=1, 40% GPU mem) |
+| Max prompt length | 512 (math), 256 (TriviaQA) |
+| Max response length | 1024 (math), 256 (TriviaQA) |
+| Precision | bf16 (FSDP) |
+| Gradient checkpointing | Yes |
+| Save frequency | Every 200 steps |
+
+### SFT+GRPO
+
+Same hyperparameters as GRPO above, initialized from SFT step 500 (~1 epoch) instead of the base model.
 
 ---
 
