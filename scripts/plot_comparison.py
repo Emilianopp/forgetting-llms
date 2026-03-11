@@ -53,7 +53,9 @@ METHOD_STYLES = {
     "grpo": {"color": "#e74c3c", "marker": "o", "label": "GRPO (Online RL)"},
     "gt_sft": {"color": "#2ecc71", "marker": "s", "label": "GT-SFT"},
     "sf_sft": {"color": "#3498db", "marker": "^", "label": "SF-SFT (Teacher)"},
-    "cf_sft": {"color": "#9b59b6", "marker": "D", "label": "CF-SFT (Cross-Family)"},
+    "gt_sft_grpo": {"color": "#ff7f0e", "marker": "D", "label": "GT-SFT+GRPO"},
+    "sf_sft_grpo": {"color": "#9467bd", "marker": "v", "label": "SF-SFT+GRPO"},
+    "cf_sft": {"color": "#9b59b6", "marker": "P", "label": "CF-SFT (Cross-Family)"},
 }
 
 
