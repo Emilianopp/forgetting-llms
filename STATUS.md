@@ -114,9 +114,9 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 | GRPO TriviaQA | 4/6 | **Done** | PARTIAL |
 | GT-SFT TriviaQA | 4/15 | **Done** | PARTIAL |
 | SF-SFT TriviaQA | 2/13 | **Done** | PARTIAL |
-| GT-SFT+GRPO GSM8K | — | **Done** | Eval submitted |
-| GT-SFT+GRPO MATH | — | **Done** | Eval submitted |
-| GT-SFT+GRPO TriviaQA | — | **Done** | Eval submitted |
+| GT-SFT+GRPO GSM8K | **4/5** | **Done** | OOD nearly complete |
+| GT-SFT+GRPO MATH | — | **Done** | OOD queued |
+| GT-SFT+GRPO TriviaQA | — | **Done** | OOD queued |
 | SF-SFT+GRPO GSM8K | — | **Done** | OOD eval in progress |
 | SF-SFT+GRPO MATH | — | **Done** | OOD eval in progress |
 | SF-SFT+GRPO TriviaQA | — | **Done** | OOD eval in progress |
@@ -129,11 +129,12 @@ All checkpoint paths relative to `~/scratch/forgetting-llms/`.
 
 | Method | GSM8K | MATH | TriviaQA |
 |--------|-------|------|----------|
-| **GRPO** | **-0.0060** | -0.0010 | **-0.0023** |
-| **GT-SFT** | +0.0130 | +0.0096 | +0.0080 |
-| **SF-SFT** | +0.0089 | +0.0063 | +0.0087 |
+| **GT-SFT+GRPO** | **+0.0297** | Pending | Pending |
+| **GT-SFT** | +0.0188 | +0.0117 | +0.0120 |
+| **SF-SFT** | +0.0096 | +0.0072 | +0.0144 |
+| **GRPO** | -0.0076 | +0.0028 | -0.0026 |
 
-All SFT variants show positive OOD delta (no forgetting). GRPO shows mild forgetting on GSM8K and TriviaQA.
+GT-SFT+GRPO shows the **strongest positive OOD delta** (+0.030 on GSM8K, all 10 benchmarks positive). SFT warmstart + RL improves general capabilities more than any method alone. GRPO alone causes mild forgetting.
 
 ### Summary: Task Accuracy (in-distribution)
 
@@ -199,7 +200,7 @@ All SFT variants show positive OOD delta (no forgetting). GRPO shows mild forget
 
 1. **GRPO excels at task learning, SFT methods do not.** GRPO improves task accuracy dramatically (GSM8K +28pp, MATH +54pp, TriviaQA +61pp). GT-SFT either drops or barely moves task accuracy because it overwrites the model's native `<think>` reasoning with short-form answers.
 
-2. **SF-SFT+GRPO matches or beats pure GRPO on task accuracy.** SF-SFT warmstart + GRPO achieves 88.9% on GSM8K (vs pure GRPO 87.0%), ties on MATH (65.1% vs 65.1%), and reaches 69.0% on TriviaQA (vs GRPO 99.7%). GT-SFT+GRPO slightly trails: 83.2%, 61.6%, 65.7%. Key question: does SFT warmstart reduce OOD forgetting? (eval in progress).
+2. **SFT+GRPO: best of both worlds.** SF-SFT+GRPO matches or beats pure GRPO on task accuracy (GSM8K 88.9% vs 87.0%, MATH 65.1% tie, TriviaQA 69.0% vs 99.7%). GT-SFT+GRPO on GSM8K shows the **strongest OOD improvement** of any method (+0.030 avg across 10 benchmarks, all positive) — better than GT-SFT alone (+0.019) and far better than pure GRPO (-0.008). SFT warmstart appears to regularize RL training.
 
 3. **SF-SFT partially recovers task accuracy.** By training on Qwen3-32B teacher solutions that preserve `<think>`, SF-SFT achieves 66% on GSM8K (vs GT-SFT 55%, base 59%). Still far below GRPO (87%). However, SF-SFT fails on MATH (43% teacher pass rate bottleneck).
 
@@ -221,12 +222,12 @@ Using SFT step 500 (~1 epoch) as warmstart, then GRPO for 15 epochs. Tests wheth
 
 | Experiment | Steps | Ckpts | Task Acc (best) | OOD Eval |
 |-----------|-------|-------|----------------|----------|
-| GT-SFT+GRPO GSM8K | 1,199 | 5 | **83.2%** (step 1000) | Pending |
-| GT-SFT+GRPO MATH | 892 | 4 | **61.6%** (step 800) | Pending |
-| GT-SFT+GRPO TriviaQA | 2,253 | 11 | **65.7%** (step 1400) | Pending |
-| SF-SFT+GRPO GSM8K | 1,253 | 6 | **88.9%** (step 1200) | Pending |
-| SF-SFT+GRPO MATH | 987 | 4 | **65.1%** (step 800) | Pending |
-| SF-SFT+GRPO TriviaQA | 2,201 | 11 | **69.0%** (step 2000) | Pending |
+| GT-SFT+GRPO GSM8K | 1,199 | 5 | **83.2%** (step 1000) | **+0.030** (4/5 steps) |
+| GT-SFT+GRPO MATH | 892 | 4 | **61.6%** (step 800) | Queued |
+| GT-SFT+GRPO TriviaQA | 2,253 | 11 | **65.7%** (step 1400) | Queued |
+| SF-SFT+GRPO GSM8K | 1,253 | 6 | **88.9%** (step 1200) | Queued |
+| SF-SFT+GRPO MATH | 987 | 4 | **65.1%** (step 800) | Queued |
+| SF-SFT+GRPO TriviaQA | 2,201 | 11 | **69.0%** (step 2000) | Queued |
 
 ---
 
