@@ -31,6 +31,10 @@ def load_test_data(dataset: str) -> list[dict]:
         test_path = data_dir / "gsm8k" / "test.parquet"
     elif dataset == "math":
         test_path = data_dir / "math" / "test.parquet"
+    elif dataset == "polaris_math":
+        test_path = data_dir / "polaris_math" / "test.parquet"
+    elif dataset == "openr1_math":
+        test_path = data_dir / "openr1_math" / "test.parquet"
     elif dataset == "triviaqa":
         test_path = data_dir / "triviaqa" / "test.parquet"
     else:
@@ -76,8 +80,13 @@ def build_chat_prompts(samples: list[dict], tokenizer) -> list[str]:
     return prompts
 
 
-def evaluate_model(model_path: str, samples: list[dict], dataset: str,
-                   max_tokens: int = 1024) -> dict:
+def evaluate_model(
+    model_path: str,
+    samples: list[dict],
+    dataset: str,
+    max_tokens: int = 1024,
+    temperature: float = 1.0,
+) -> dict:
     """Generate responses with vLLM and grade them."""
     from vllm import LLM, SamplingParams
     from transformers import AutoTokenizer
@@ -100,7 +109,7 @@ def evaluate_model(model_path: str, samples: list[dict], dataset: str,
         gpu_memory_utilization=0.9,
     )
     params = SamplingParams(
-        temperature=0.0,
+        temperature=temperature,
         max_tokens=max_tokens,
         stop=["<|endoftext|>", "<|im_end|>"],
     )
@@ -145,7 +154,10 @@ def evaluate_model(model_path: str, samples: list[dict], dataset: str,
 
 
 def merge_checkpoint(ckpt_path: Path) -> Path:
-    """Merge FSDP checkpoint to HF format, return merged path."""
+    """Resolve a merged checkpoint path for evaluation.
+
+    PRIME-only workflow: legacy raw VeRL/FSDP shards are no longer merged here.
+    """
     if (ckpt_path / "actor").is_dir():
         fsdp_dir = ckpt_path / "actor"
         merged_dir = ckpt_path / "actor_merged"
@@ -157,22 +169,21 @@ def merge_checkpoint(ckpt_path: Path) -> Path:
         print(f"  Using existing merged model: {merged_dir}")
         return merged_dir
 
-    print(f"  Merging FSDP checkpoint: {fsdp_dir}")
-    subprocess.run([
-        sys.executable, "-m", "verl.model_merger", "merge",
-        "--backend", "fsdp",
-        "--local_dir", str(fsdp_dir),
-        "--target_dir", str(merged_dir),
-    ], check=True)
-    return merged_dir
+    raise RuntimeError(
+        "Legacy VeRL/FSDP checkpoint detected without a merged export. "
+        f"Expected an already-merged model under {merged_dir}. "
+        "This repo's supported path is PRIME-RL only; evaluate a PRIME-exported "
+        "checkpoint or a pre-merged HF checkpoint instead."
+    )
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint_dir", type=str, required=True)
-    parser.add_argument("--dataset", type=str, required=True, choices=["gsm8k", "math", "triviaqa"])
+    parser.add_argument("--dataset", type=str, required=True, choices=["gsm8k", "math", "triviaqa", "polaris_math", "openr1_math"])
     parser.add_argument("--base_model", type=str, default="Qwen/Qwen3-1.7B")
     parser.add_argument("--output_path", type=str, required=True)
+    parser.add_argument("--temperature", type=float, default=1.0)
     args = parser.parse_args()
 
     ckpt_dir = Path(os.path.expanduser(args.checkpoint_dir))
@@ -196,7 +207,7 @@ def main():
     # Evaluate base model
     if "0" not in results["steps"]:
         print(f"\n--- Evaluating base model: {args.base_model} ---")
-        result = evaluate_model(args.base_model, samples, args.dataset)
+        result = evaluate_model(args.base_model, samples, args.dataset, temperature=args.temperature)
         results["steps"]["0"] = result
         print(f"  Base model accuracy: {result['accuracy']:.4f} ({result['correct']}/{result['total']})")
         # Save incrementally
@@ -222,7 +233,7 @@ def main():
         merged_dir = merge_checkpoint(ckpt_path)
 
         # Evaluate
-        result = evaluate_model(str(merged_dir), samples, args.dataset)
+        result = evaluate_model(str(merged_dir), samples, args.dataset, temperature=args.temperature)
         results["steps"][step] = result
         print(f"  Step {step} accuracy: {result['accuracy']:.4f} ({result['correct']}/{result['total']})")
 

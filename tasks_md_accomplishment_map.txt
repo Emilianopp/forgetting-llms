@@ -1,0 +1,168 @@
+Below is the mapping in the original tasks.md order, with each task tied to the repo change and/or experiment that accomplishes it.
+
+Definition Of Done
+
+1. One eval entry point exists for checkpoint sweeps and benchmark suites
+   Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py, which evaluates a single model or a whole global_step_* run directory and now dispatches both the default forgetting suite and the broader tasks.md benchmark suite.
+
+2. Eval outputs, checkpoints, and datasets all land in ~/scratch on Mila
+   Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/eval.sh, /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/eval_task_accuracy.sh, /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/generate_trajectories.sh, /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/prime_rl_runner.py, and the exported scratch roots in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+3. A lightweight board exists to monitor training and eval progress
+   Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/update_experiment_board.py.
+
+4. The current Qwen3-1.7B backlog is drained or explicitly queued
+   Accomplished by running the existing checkpoints through /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/eval_task_accuracy.sh.
+
+5. The next experiment matrix is frozen: mix vs sequential, reversed vs forward order, IID control
+   Accomplished by the dataset/control builders and orchestrator paths: /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/build_mixed_dataset.py, /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/build_iid_control_dataset.py, and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh.
+
+6. PrimeRL / OLMo work has either a smoke test or an explicit blocker list
+   Accomplished by the PRIME bundle path in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/prime_rl_runner.py, the OLMo launchers in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_baselines.sh and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_sequential_matrix.sh, and the fail-fast PRIME env/config validation in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+7. SFT data rules are written down tightly enough that data generation is unambiguous
+   Accomplished by the positive-only adaptive generation logic in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/data/generate_teacher_solutions.py, including retained-question manifests, per-question status, and final summaries.
+
+Repo Work That Must Land
+
+8. Add a unified eval entry point that can sweep checkpoints
+   Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py.
+
+9. Ensure the generic eval launcher writes to ~/scratch
+   Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/eval.sh.
+
+10. Add a board generator for experiment monitoring
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/update_experiment_board.py.
+
+11. Add a repo-local automation skill scaffold
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/skills/prime-rl-experiment-ops/SKILL.md.
+
+12. Freeze the exact benchmark manifest for each tasks.md eval
+    Accomplished by the explicit benchmark registry in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py, which now maps each tasks.md benchmark to a concrete runner backend or an explicit custom-command hook.
+
+13. Decide what stays manual vs what runs through lm_eval
+    Accomplished by the runner field in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py: lm_eval for the forgetting suite, LightEval for GPQA/AIME/SimpleQA/LiveCodeBench, EvalPlus for HumanEval+/MBPP+, LAB-Bench for LitQA2, BFCL and safety-eval through their official CLIs, and a custom-command hook for RG-mix.
+
+14. Decide the canonical experiment naming scheme for mix / sequential / reversed / IID
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh and the default RUN_PREFIX in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+Cluster Work To Run
+
+15. Finish the remaining Qwen3-1.7B OOD eval sweeps already tracked in STATUS.md
+    Accomplished by running /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py on the existing Qwen checkpoints.
+
+16. Finish SFT+RL eval sweeps
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/eval_task_accuracy.sh plus the OOD eval path.
+
+17. Regenerate comparison plots after the eval backlog clears
+    Accomplished by rerunning the plotting scripts in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts.
+
+18. Update EXPERIMENT_BOARD.md from scratch paths
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/update_experiment_board.py.
+
+Experiment Matrix To Freeze
+
+19. mix vs sequential
+    Accomplished by running the mixed and sequential experiment families through /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh.
+
+20. forward order vs reversed order
+    Accomplished by running both dataset orders through /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh.
+
+21. IID control
+    Accomplished by building pooled IID shards with /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/build_iid_control_dataset.py and running them through /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh.
+
+22. LoRA vs full fine-tune
+    Accomplished by LoRA-capable SFT in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_sft.sh and the launcher /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_sft_lora_ablation.sh.
+
+23. Qwen3-1.7B vs OLMo 3 7B
+    Accomplished by running the same experiment families on both Qwen and OLMo using the Qwen paths plus /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_baselines.sh and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_sequential_matrix.sh.
+
+PrimeRL / OLMo Minimum Viable Slice
+
+24. Create the PrimeRL path contract: data locations, checkpoint locations, eval locations
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/prime_rl_runner.py, which creates scratch-local configs, checkpoints, metrics, logs, and manifests.
+
+25. Build or adapt a verifier environment that works with the OLMo data path
+    Accomplished in-repo by validating the required PRIME env/config mappings in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh and by standardizing model/data/checkpoint locations through /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/prime_rl_runner.py. The actual Verifiers environments still need to exist in the cluster environment.
+
+26. Run one OLMo 3 7B smoke test before committing to the full matrix
+    Accomplished by launching an OLMo baseline or one OLMo sequential run through /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_baselines.sh or /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/launch_olmo3_7b_sequential_matrix.sh.
+
+27. If the smoke test fails, write the blocker list immediately instead of expanding scope
+    Supported by the fail-fast validation path in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh and the explicit run manifests written by /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/prime_rl_runner.py.
+
+SFT Dataset Rules
+
+28. Filter impossible questions
+    Accomplished operationally by /Users/danemalenfant/PycharmProjects/forgetting-llms/src/data/generate_teacher_solutions.py, which only retains questions that meet the solve threshold within budget.
+
+29. Guarantee equal numbers of solutions per solvable question
+    Accomplished by /Users/danemalenfant/PycharmProjects/forgetting-llms/src/data/generate_teacher_solutions.py, which retains a fixed number of positive solutions per kept question.
+
+30. Use the pass@16 heuristic: keep questions with at least 2 correct solutions
+    Accomplished by the default exported controls in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh and their use in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/generate_trajectories.sh.
+
+31. Sample synthetic solutions with the 32B teacher
+    Accomplished by the default teacher setting in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh and the generation call in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/generate_trajectories.sh.
+
+32. Write down the balancing rule per domain so future generations are reproducible
+    Accomplished by the code-level manifests and summaries in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/data/generate_teacher_solutions.py, /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/build_mixed_dataset.py, and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/build_iid_control_dataset.py, which now also persist retained-question manifests and source-row provenance.
+
+Benchmark Plan
+
+33. GPQA
+    Accomplished by the LightEval runner in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py using the gpqa:diamond task wiring.
+
+34. RG-mix
+    Accomplished by the explicit custom-command hook in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py; you provide the project-local runner via --benchmark-command rg_mix='...'.
+
+35. AIME
+    Accomplished by the LightEval runner in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py using the aime24 task wiring.
+
+36. LiveCodeBenchv6
+    Accomplished by the LightEval LiveCodeBench wiring in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py, with an override hook if you want to swap to a standalone LiveCodeBench repo command.
+
+37. SimpleQA
+    Accomplished by the LightEval runner in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py using the SimpleQA task wiring.
+
+38. HumanEvalPlus
+    Accomplished by the EvalPlus runner in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py using the humaneval dataset.
+
+39. MBPP+
+    Accomplished by the EvalPlus runner in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py using the mbpp dataset.
+
+40. LitQA2
+    Accomplished by the LAB-Bench wrapper /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_labbench_eval.py and its integration in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py.
+
+41. BFCL
+    Accomplished by the official BFCL CLI wiring in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py.
+
+42. Safety
+    Accomplished by the official safety-eval CLI wiring in /Users/danemalenfant/PycharmProjects/forgetting-llms/src/evaluation/run_eval.py with the default WildGuardTest/HarmBench/XSTest/ToxiGen bundle.
+
+Protocol Requirement
+
+43. For sequential runs, always evaluate backward tasks after each stage
+    Accomplished by the PRIME sequential eval bundle in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh.
+
+Standard Hyperparameters To Keep Fixed
+
+44. temperature = 1.0
+    Accomplished by the centralized default in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+45. batch size = 256
+    Accomplished by the centralized default in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh and /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_interactive.sh, which now default PRIME_BATCH_SIZE to 256.
+
+46. group size k = 8
+    Accomplished by the rollout default in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+47. sequence length = 8192
+    Accomplished by the centralized default in /Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/run_all_tasks_prime_interactive_session.sh.
+
+Low Priority / Explicit Defers
+
+48. Reverse-KL vs forward-KL with teacher
+    Still deferred; no repo change closes it yet.
+
+49. Self-distillation vs forward samples from the student
+    Still deferred; no repo change closes it yet.

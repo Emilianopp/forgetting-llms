@@ -40,7 +40,13 @@ trap 'resubmit' USR1
 
 # --- Environment ---
 module load python/3.10
-source $HOME/envs/forgetting/bin/activate
+if [ -f "$HOME/forgetting-llms/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "$HOME/forgetting-llms/.venv/bin/activate"
+else
+    # shellcheck disable=SC1091
+    source "$HOME/envs/forgetting/bin/activate"
+fi
 export HF_HOME=~/scratch/huggingface
 export PYTHONUNBUFFERED=1
 unset ROCR_VISIBLE_DEVICES

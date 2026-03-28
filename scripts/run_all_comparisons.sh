@@ -10,6 +10,10 @@
 
 set -euo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/require_prime_only.sh"
+
 MODEL="${1:-Qwen/Qwen3-1.7B}"
 MODEL_SHORT="qwen3_1.7b"
 

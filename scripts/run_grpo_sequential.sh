@@ -5,7 +5,7 @@
 #   sbatch scripts/run_grpo_sequential.sh <dataset> <model_path> <experiment_name>
 #
 # Arguments:
-#   $1 = dataset name: gsm8k, math, triviaqa
+#   $1 = dataset name: gsm8k, math, triviaqa, polaris_math, openr1_math
 #   $2 = model path: HF model ID (e.g. Qwen/Qwen3-1.7B) or local checkpoint dir
 #   $3 = experiment name for WandB (e.g. grpo_gsm8k_then_math)
 #
@@ -25,6 +25,10 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/require_prime_only.sh"
+
 # --- Validate arguments ---
 DATASET="${1:?Usage: $0 <dataset> <model_path> <experiment_name>}"
 MODEL_PATH="${2:?Usage: $0 <dataset> <model_path> <experiment_name>}"
@@ -32,9 +36,17 @@ EXPERIMENT_NAME="${3:?Usage: $0 <dataset> <model_path> <experiment_name>}"
 
 # --- Environment ---
 module load python/3.10
-source $HOME/envs/forgetting/bin/activate
+if [ -f "$HOME/forgetting-llms/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "$HOME/forgetting-llms/.venv/bin/activate"
+else
+    # shellcheck disable=SC1091
+    source $HOME/envs/forgetting/bin/activate
+fi
 export HF_HOME=~/scratch/huggingface
 export PYTHONUNBUFFERED=1
+export WANDB_DIR=~/scratch/forgetting-llms/wandb/${EXPERIMENT_NAME}
+export WANDB_CACHE_DIR=~/scratch/forgetting-llms/wandb_cache/${EXPERIMENT_NAME}
 unset ROCR_VISIBLE_DEVICES
 
 # --- Paths ---
@@ -43,7 +55,7 @@ SAVE_DIR=~/scratch/forgetting-llms/checkpoints/$EXPERIMENT_NAME
 REPO_DIR=$HOME/forgetting-llms
 
 mkdir -p slurm_logs
-mkdir -p "$SAVE_DIR"
+mkdir -p "$SAVE_DIR" "$WANDB_DIR" "$WANDB_CACHE_DIR"
 
 # --- Detect and handle FSDP checkpoints ---
 # Supports both GRPO layout (actor/ subdir) and SFT layout (model files in step dir)
@@ -87,13 +99,23 @@ REWARD_PATH="$REPO_DIR/src/rewards/unified_reward.py"
 
 # --- Per-dataset config ---
 case "$DATASET" in
-    gsm8k|math)
-        MAX_PROMPT=512; MAX_RESPONSE=1024; TOTAL_EPOCHS=15 ;;
+    gsm8k|math|polaris_math|openr1_math)
+        DEFAULT_MAX_PROMPT=512; DEFAULT_MAX_RESPONSE=1024; DEFAULT_TOTAL_EPOCHS=15 ;;
     triviaqa)
-        MAX_PROMPT=256; MAX_RESPONSE=256; TOTAL_EPOCHS=15 ;;
+        DEFAULT_MAX_PROMPT=256; DEFAULT_MAX_RESPONSE=256; DEFAULT_TOTAL_EPOCHS=15 ;;
     *)
-        MAX_PROMPT=512; MAX_RESPONSE=1024; TOTAL_EPOCHS=15 ;;
+        DEFAULT_MAX_PROMPT=512; DEFAULT_MAX_RESPONSE=1024; DEFAULT_TOTAL_EPOCHS=15 ;;
 esac
+
+MAX_PROMPT=${MAX_PROMPT:-$DEFAULT_MAX_PROMPT}
+MAX_RESPONSE=${MAX_RESPONSE:-$DEFAULT_MAX_RESPONSE}
+TOTAL_EPOCHS=${TOTAL_EPOCHS:-$DEFAULT_TOTAL_EPOCHS}
+TRAIN_BATCH_SIZE=${TRAIN_BATCH_SIZE:-16}
+PPO_MINI_BATCH_SIZE=${PPO_MINI_BATCH_SIZE:-16}
+PPO_MICRO_BATCH_SIZE_PER_GPU=${PPO_MICRO_BATCH_SIZE_PER_GPU:-2}
+ROLLOUTS_PER_PROMPT=${ROLLOUTS_PER_PROMPT:-4}
+ROLLOUT_LOGPROB_MICRO_BATCH_SIZE_PER_GPU=${ROLLOUT_LOGPROB_MICRO_BATCH_SIZE_PER_GPU:-4}
+ACTOR_LR=${ACTOR_LR:-1e-6}
 
 echo "========================================="
 echo "  Sequential GRPO Run"
@@ -104,6 +126,10 @@ echo "Experiment: $EXPERIMENT_NAME"
 echo "Data:       $DATA_DIR"
 echo "Save:       $SAVE_DIR"
 echo "Reward:     $REWARD_PATH"
+echo "Max prompt: $MAX_PROMPT"
+echo "Max resp:   $MAX_RESPONSE"
+echo "Epochs:     $TOTAL_EPOCHS"
+echo "Rollouts:   $ROLLOUTS_PER_PROMPT"
 echo "GPUs:       2x A100 80GB"
 echo "========================================="
 
@@ -112,7 +138,7 @@ python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=grpo \
     data.train_files=$DATA_DIR/train.parquet \
     data.val_files=$DATA_DIR/test.parquet \
-    data.train_batch_size=16 \
+    data.train_batch_size=$TRAIN_BATCH_SIZE \
     data.max_prompt_length=$MAX_PROMPT \
     data.max_response_length=$MAX_RESPONSE \
     data.filter_overlong_prompts=True \
@@ -121,9 +147,9 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.model.enable_gradient_checkpointing=True \
     actor_rollout_ref.model.use_remove_padding=False \
     +actor_rollout_ref.model.override_config.attn_implementation=sdpa \
-    actor_rollout_ref.actor.optim.lr=1e-6 \
-    actor_rollout_ref.actor.ppo_mini_batch_size=16 \
-    actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=2 \
+    actor_rollout_ref.actor.optim.lr=$ACTOR_LR \
+    actor_rollout_ref.actor.ppo_mini_batch_size=$PPO_MINI_BATCH_SIZE \
+    actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=$PPO_MICRO_BATCH_SIZE_PER_GPU \
     actor_rollout_ref.actor.use_kl_loss=False \
     actor_rollout_ref.actor.entropy_coeff=0 \
     actor_rollout_ref.actor.fsdp_config.param_offload=False \
@@ -131,9 +157,9 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.name=vllm \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.gpu_memory_utilization=0.4 \
-    actor_rollout_ref.rollout.n=4 \
+    actor_rollout_ref.rollout.n=$ROLLOUTS_PER_PROMPT \
     actor_rollout_ref.rollout.response_length=$MAX_RESPONSE \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=$ROLLOUT_LOGPROB_MICRO_BATCH_SIZE_PER_GPU \
     algorithm.use_kl_in_reward=False \
     custom_reward_function.path="$REWARD_PATH" \
     custom_reward_function.name=compute_score \

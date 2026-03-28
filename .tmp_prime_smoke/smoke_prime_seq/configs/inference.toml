@@ -1,0 +1,5 @@
+# Generated PRIME-RL inference stub.
+
+[model]
+name = "Qwen/Qwen3-1.7B"
+enforce_eager = false

@@ -13,6 +13,13 @@ import re
 
 # --- Math grading (shared by gsm8k and math) ---
 
+def extract_answer_tag(text: str) -> str | None:
+    """Extract answer from the last <answer>...</answer> tag pair."""
+    matches = re.findall(r"<answer>\s*(.*?)\s*</answer>", text, flags=re.DOTALL | re.IGNORECASE)
+    if matches:
+        return matches[-1].strip()
+    return None
+
 def extract_boxed_answer(text: str) -> str | None:
     """Extract answer from \\boxed{...} in model output."""
     pattern = r"\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}"
@@ -45,7 +52,9 @@ def normalize_number(s: str) -> str | None:
 
 def math_score(solution_str: str, ground_truth: str) -> float:
     """Score a math response (gsm8k or MATH)."""
-    model_answer = extract_boxed_answer(solution_str)
+    model_answer = extract_answer_tag(solution_str)
+    if model_answer is None:
+        model_answer = extract_boxed_answer(solution_str)
     if model_answer is None:
         model_answer = extract_answer_after_hash(solution_str)
     if model_answer is None:
@@ -77,6 +86,9 @@ def code_score(solution_str: str, ground_truth: str) -> float:
 
 def extract_answer_after_marker(text: str) -> str:
     """Extract answer after 'The answer is:' marker."""
+    tagged = extract_answer_tag(text)
+    if tagged is not None:
+        return tagged
     match = re.search(r"[Tt]he answer is:\s*(.+?)(?:\.|$)", text, re.DOTALL)
     if match:
         return match.group(1).strip()
@@ -152,7 +164,7 @@ def compute_score(
     Returns:
         1.0 if correct, 0.0 if incorrect.
     """
-    if data_source in ("gsm8k", "math"):
+    if data_source in ("gsm8k", "math", "polaris_math", "openr1_math"):
         return math_score(solution_str, ground_truth)
     elif data_source == "codecontest":
         return code_score(solution_str, ground_truth)

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Copy this file to:
+#   ~/scratch/forgetting-llms/benchmark_env.sh
+# and edit the values for your cluster.
+#
+# For conflict-free installs, prefer:
+#   bash scripts/setup_runner_venvs.sh
+# which creates one venv per benchmark runner and writes the shell prefixes below.
+
+# Project-local RG-mix benchmark root.
+# Optional if rg-mix-env is already installed into the active Python env.
+# Leave unset if the checkout does not exist on this machine.
+export RG_MIX_ROOT="${RG_MIX_ROOT:-}"
+
+# OpenAI-compatible endpoint used by LAB-Bench and RG-mix runners.
+# For example, if you launch a local vLLM server on the eval GPU:
+#   export OPENAI_BASE_URL='http://127.0.0.1:8000/v1'
+#   export OPENAI_API_KEY='EMPTY'
+export OPENAI_BASE_URL="${OPENAI_BASE_URL:-}"
+export OPENAI_API_BASE="${OPENAI_API_BASE:-$OPENAI_BASE_URL}"
+export OPENAI_API_KEY="${OPENAI_API_KEY:-EMPTY}"
+
+# Hugging Face auth for gated benchmark datasets such as GPQA.
+# Your account must already have access approved on the dataset page.
+export HF_TOKEN="${HF_TOKEN:-}"
+export HUGGING_FACE_HUB_TOKEN="${HUGGING_FACE_HUB_TOKEN:-$HF_TOKEN}"
+
+# External benchmark repo roots.
+# Standard scratch locations created by scripts/setup_tasks_md_benchmarks.sh.
+export BFCL_ROOT="${BFCL_ROOT:-$HOME/scratch/gorilla/berkeley-function-call-leaderboard}"
+export SAFETY_EVAL_ROOT="${SAFETY_EVAL_ROOT:-$HOME/scratch/safety-eval}"
+
+# Optional per-runner shell activation prefixes.
+# Use these when heavy benchmarks need separate Python environments instead of
+# one shared venv. Each prefix is executed as:
+#   bash -lc "<prefix> && exec <runner command...>"
+#
+# Examples:
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_SAFETY_EVAL='source ~/scratch/forgetting-llms/.venvs/safety/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_BFCL='source ~/scratch/forgetting-llms/.venvs/bfcl/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_RG_MIX='source ~/scratch/forgetting-llms/.venvs/rg_mix/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_LABBENCH='source ~/scratch/forgetting-llms/.venvs/labbench/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_LIGHTEVAL='source ~/scratch/forgetting-llms/.venvs/lighteval/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_EVALPLUS='source ~/scratch/forgetting-llms/.venvs/evalplus/bin/activate'
+#   export BENCHMARK_RUNNER_SHELL_PREFIX_SUPERGPQA='source ~/scratch/forgetting-llms/.venvs/lighteval/bin/activate'
+# Benchmark-specific overrides also work, for example:
+#   export BENCHMARK_SHELL_PREFIX_SAFETY='source ~/scratch/forgetting-llms/.venvs/safety/bin/activate'

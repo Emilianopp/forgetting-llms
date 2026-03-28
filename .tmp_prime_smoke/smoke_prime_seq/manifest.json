@@ -1,0 +1,64 @@
+{
+  "args": {
+    "batch_size": 16,
+    "ckpt_interval": 5,
+    "ckpt_keep_interval": 50,
+    "ckpt_keep_last": 3,
+    "combined_config": null,
+    "command": "prime",
+    "enforce_eager": false,
+    "environment_name": "gsm8k",
+    "execute": false,
+    "fake_data_batch_size": 16,
+    "hf_home": ".tmp_prime_smoke/hf",
+    "inference_config": null,
+    "max_async_level": 1,
+    "max_steps": 1000,
+    "max_tokens": 1024,
+    "model": "Qwen/Qwen3-1.7B",
+    "no_auto_resume": false,
+    "orchestrator_config": null,
+    "output_root": ".tmp_prime_smoke",
+    "prime_command": "uv run rl",
+    "resume_step": null,
+    "rollouts_per_prompt": 8,
+    "run_name": "smoke_prime_seq",
+    "seq_len": 8192,
+    "temperature": 1.0,
+    "top_p": 1.0,
+    "trainer_config": null,
+    "wandb_entity": null,
+    "wandb_mode": "online",
+    "wandb_project": "forgetting-llms"
+  },
+  "checkpointing": {
+    "enabled": true,
+    "interval": 5,
+    "keep_interval": 50,
+    "keep_last": 3
+  },
+  "command": "prime",
+  "mode": "split_configs",
+  "notes": [
+    "If you have working PRIME-RL configs from `uv run vf-setup`, pass them explicitly.",
+    "The generated stubs are suitable as starting points, not guaranteed production configs.",
+    "Metrics, logs, checkpoints, and WandB local state are all directed into scratch."
+  ],
+  "paths": {
+    "checkpoints_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/checkpoints",
+    "configs_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/configs",
+    "hf_home": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/hf",
+    "logs_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/logs",
+    "metrics_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/metrics",
+    "models_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/models",
+    "predictions_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/predictions",
+    "run_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq",
+    "wandb_cache_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/wandb-cache",
+    "wandb_dir": "/Users/danemalenfant/PycharmProjects/forgetting-llms/.tmp_prime_smoke/smoke_prime_seq/wandb"
+  },
+  "resume_step": 25,
+  "wandb_ids": {
+    "orchestrator": "68cb7a488dfe53749d0e10ccebd159b2",
+    "trainer": "c4d021bfcd9b514c8b355ffac5570d8c"
+  }
+}

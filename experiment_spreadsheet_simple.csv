@@ -1,0 +1,97 @@
+model,training_mode,objective,lora
+Qwen3-1.7B,sequential forward,RL,yes
+Qwen3-1.7B,sequential forward,RL,no
+Qwen3-1.7B,sequential forward,SFT,yes
+Qwen3-1.7B,sequential forward,SFT,no
+Qwen3-1.7B,sequential forward,RL + SFT,yes
+Qwen3-1.7B,sequential forward,RL + SFT,no
+Qwen3-1.7B,sequential forward,Self-distillation,yes
+Qwen3-1.7B,sequential forward,Self-distillation,no
+Qwen3-1.7B,sequential reverse,RL,yes
+Qwen3-1.7B,sequential reverse,RL,no
+Qwen3-1.7B,sequential reverse,SFT,yes
+Qwen3-1.7B,sequential reverse,SFT,no
+Qwen3-1.7B,sequential reverse,RL + SFT,yes
+Qwen3-1.7B,sequential reverse,RL + SFT,no
+Qwen3-1.7B,sequential reverse,Self-distillation,yes
+Qwen3-1.7B,sequential reverse,Self-distillation,no
+Qwen3-1.7B,mixed,RL,yes
+Qwen3-1.7B,mixed,RL,no
+Qwen3-1.7B,mixed,SFT,yes
+Qwen3-1.7B,mixed,SFT,no
+Qwen3-1.7B,mixed,RL + SFT,yes
+Qwen3-1.7B,mixed,RL + SFT,no
+Qwen3-1.7B,mixed,Self-distillation,yes
+Qwen3-1.7B,mixed,Self-distillation,no
+Qwen3-1.7B,IID,RL,yes
+Qwen3-1.7B,IID,RL,no
+Qwen3-1.7B,IID,SFT,yes
+Qwen3-1.7B,IID,SFT,no
+Qwen3-1.7B,IID,RL + SFT,yes
+Qwen3-1.7B,IID,RL + SFT,no
+Qwen3-1.7B,IID,Self-distillation,yes
+Qwen3-1.7B,IID,Self-distillation,no
+Qwen3-4B,sequential forward,RL,yes
+Qwen3-4B,sequential forward,RL,no
+Qwen3-4B,sequential forward,SFT,yes
+Qwen3-4B,sequential forward,SFT,no
+Qwen3-4B,sequential forward,RL + SFT,yes
+Qwen3-4B,sequential forward,RL + SFT,no
+Qwen3-4B,sequential forward,Self-distillation,yes
+Qwen3-4B,sequential forward,Self-distillation,no
+Qwen3-4B,sequential reverse,RL,yes
+Qwen3-4B,sequential reverse,RL,no
+Qwen3-4B,sequential reverse,SFT,yes
+Qwen3-4B,sequential reverse,SFT,no
+Qwen3-4B,sequential reverse,RL + SFT,yes
+Qwen3-4B,sequential reverse,RL + SFT,no
+Qwen3-4B,sequential reverse,Self-distillation,yes
+Qwen3-4B,sequential reverse,Self-distillation,no
+Qwen3-4B,mixed,RL,yes
+Qwen3-4B,mixed,RL,no
+Qwen3-4B,mixed,SFT,yes
+Qwen3-4B,mixed,SFT,no
+Qwen3-4B,mixed,RL + SFT,yes
+Qwen3-4B,mixed,RL + SFT,no
+Qwen3-4B,mixed,Self-distillation,yes
+Qwen3-4B,mixed,Self-distillation,no
+Qwen3-4B,IID,RL,yes
+Qwen3-4B,IID,RL,no
+Qwen3-4B,IID,SFT,yes
+Qwen3-4B,IID,SFT,no
+Qwen3-4B,IID,RL + SFT,yes
+Qwen3-4B,IID,RL + SFT,no
+Qwen3-4B,IID,Self-distillation,yes
+Qwen3-4B,IID,Self-distillation,no
+OLMo 3 7B,sequential forward,RL,yes
+OLMo 3 7B,sequential forward,RL,no
+OLMo 3 7B,sequential forward,SFT,yes
+OLMo 3 7B,sequential forward,SFT,no
+OLMo 3 7B,sequential forward,RL + SFT,yes
+OLMo 3 7B,sequential forward,RL + SFT,no
+OLMo 3 7B,sequential forward,Self-distillation,yes
+OLMo 3 7B,sequential forward,Self-distillation,no
+OLMo 3 7B,sequential reverse,RL,yes
+OLMo 3 7B,sequential reverse,RL,no
+OLMo 3 7B,sequential reverse,SFT,yes
+OLMo 3 7B,sequential reverse,SFT,no
+OLMo 3 7B,sequential reverse,RL + SFT,yes
+OLMo 3 7B,sequential reverse,RL + SFT,no
+OLMo 3 7B,sequential reverse,Self-distillation,yes
+OLMo 3 7B,sequential reverse,Self-distillation,no
+OLMo 3 7B,mixed,RL,yes
+OLMo 3 7B,mixed,RL,no
+OLMo 3 7B,mixed,SFT,yes
+OLMo 3 7B,mixed,SFT,no
+OLMo 3 7B,mixed,RL + SFT,yes
+OLMo 3 7B,mixed,RL + SFT,no
+OLMo 3 7B,mixed,Self-distillation,yes
+OLMo 3 7B,mixed,Self-distillation,no
+OLMo 3 7B,IID,RL,yes
+OLMo 3 7B,IID,RL,no
+OLMo 3 7B,IID,SFT,yes
+OLMo 3 7B,IID,SFT,no
+OLMo 3 7B,IID,RL + SFT,yes
+OLMo 3 7B,IID,RL + SFT,no
+OLMo 3 7B,IID,Self-distillation,yes
+OLMo 3 7B,IID,Self-distillation,no

@@ -20,6 +20,10 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/require_prime_only.sh"
+
 # --- Environment ---
 module load python/3.10
 source $HOME/envs/forgetting/bin/activate

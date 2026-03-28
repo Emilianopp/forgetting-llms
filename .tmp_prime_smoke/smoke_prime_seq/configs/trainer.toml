@@ -1,0 +1,12 @@
+# Generated PRIME-RL trainer stub.
+# Prefer passing --trainer-config from a working `vf-setup` or project config.
+
+max_steps = 1000
+max_async_level = 1
+
+[model]
+name = "Qwen/Qwen3-1.7B"
+seq_len = 8192
+
+[data.fake]
+batch_size = 16

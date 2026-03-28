@@ -1,0 +1,12 @@
+# Generated PRIME-RL orchestrator stub.
+# Environment-specific settings generally belong in a working base config.
+
+max_steps = 1000
+max_async_level = 1
+batch_size = 16
+
+[sampling]
+max_tokens = 1024
+temperature = 1.0
+top_p = 1.0
+n = 8

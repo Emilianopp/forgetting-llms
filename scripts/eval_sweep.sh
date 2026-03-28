@@ -31,7 +31,13 @@ set -uxo pipefail  # no -e: allow partial completion on timeout
 
 # --- Environment ---
 module load python/3.10
-source $HOME/envs/forgetting/bin/activate
+if [ -f "$HOME/forgetting-llms/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "$HOME/forgetting-llms/.venv/bin/activate"
+else
+    # shellcheck disable=SC1091
+    source "$HOME/envs/forgetting/bin/activate"
+fi
 export HF_HOME=~/scratch/huggingface
 export PYTHONUNBUFFERED=1
 unset ROCR_VISIBLE_DEVICES
@@ -130,15 +136,12 @@ for ckpt in $CKPT_DIRS; do
         continue
     fi
 
-    # Merge FSDP checkpoint to HF format (skip if merged dir already exists)
+    # PRIME-only workflow: require a pre-exported HF checkpoint.
     did_merge=false
     if [ ! -d "$merged_dir" ] || [ -z "$(ls -A "$merged_dir" 2>/dev/null)" ]; then
-        echo "Merging FSDP checkpoint: $step_name"
-        python -m verl.model_merger merge \
-            --backend fsdp \
-            --local_dir "$fsdp_dir" \
-            --target_dir "$merged_dir"
-        did_merge=true
+        echo "ERROR: legacy VeRL/FSDP checkpoint detected at $fsdp_dir without merged export $merged_dir" >&2
+        echo "This repo's supported path is PRIME-RL only. Evaluate a PRIME-exported model or pre-merged HF checkpoint." >&2
+        exit 1
     else
         echo "Using existing merged model: $merged_dir"
     fi

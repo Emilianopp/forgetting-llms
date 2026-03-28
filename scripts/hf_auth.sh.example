@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Copy this file to:
+#   ~/scratch/forgetting-llms/hf_auth.sh
+# and replace the token value.
+#
+# Your Hugging Face account must already have access to any gated datasets
+# you plan to use, for example Idavidrein/gpqa.
+
+export HF_TOKEN="hf_your_token_here"
+export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
