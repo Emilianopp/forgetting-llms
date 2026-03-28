@@ -66,7 +66,7 @@ Per-stage overrides:
   STAGE_VARIANT_<DATASET>=...     Per-stage SFT data variant override
   STAGE_DATA_DIR_<DATASET>=...    Per-stage SFT data dir override
   STAGE_ENV_<DATASET>=...         PRIME environment name override
-  STAGE_RL_BACKEND_<DATASET>=...  Per-stage RL backend override: prime | dataset_dir
+  STAGE_RL_BACKEND_<DATASET>=...  Per-stage RL backend override: prime | dataset_dir (legacy only with ALLOW_LEGACY_VERL=1)
   STAGE_RL_DATA_DIR_<DATASET>=... Per-stage RL dataset-dir parquet root override
   STAGE_COMBINED_CONFIG_<DATASET>=...
   STAGE_TRAINER_CONFIG_<DATASET>=...
@@ -498,6 +498,33 @@ validate_stage_dataset_inputs() {
     fi
 }
 
+validate_prime_only_rl_backend() {
+    local stage_name="$1"
+    local training_mode="$2"
+    local rl_backend="$3"
+    local allow_legacy_verl="${ALLOW_LEGACY_VERL:-0}"
+
+    if [[ "$allow_legacy_verl" == "1" ]]; then
+        return 0
+    fi
+    if [[ "$rl_backend" != "dataset_dir" ]]; then
+        return 0
+    fi
+    if [[ "$training_mode" != "rl" && "$training_mode" != "sft_rl" ]]; then
+        return 0
+    fi
+
+    echo "ERROR: Stage '$stage_name' resolves to legacy VeRL dataset-dir RL, but this repo is PRIME-RL only." >&2
+    echo "Set ALLOW_LEGACY_VERL=1 only if you intentionally want the old path for archaeology." >&2
+    if [[ "$stage_name" == "tau2bench" ]]; then
+        echo "tau2bench does not have a PRIME-RL environment wired in this repo yet." >&2
+        echo "Right now the supported options are:" >&2
+        echo "  - run tau2bench as SFT-only" >&2
+        echo "  - add a PRIME tau2bench environment/config and set STAGE_RL_BACKEND_TAU2BENCH=prime" >&2
+    fi
+    exit 1
+}
+
 infer_model_max_len() {
     python3 "$REPO_DIR/scripts/infer_model_max_len.py" --model "$1" 2>/dev/null || true
 }
@@ -888,6 +915,7 @@ for idx in "${!STAGES[@]}"; do
     STAGE_DATA_DIR="${!STAGE_DATA_DIR_VAR:-$(default_sft_data_dir_for_name "$STAGE")}"
     STAGE_RL_BACKEND="${!STAGE_RL_BACKEND_VAR:-$(default_rl_backend_for_name "$STAGE")}"
     STAGE_RL_DATA_DIR="${!STAGE_RL_DATA_DIR_VAR:-$(default_rl_data_dir_for_name "$STAGE")}"
+    validate_prime_only_rl_backend "$STAGE" "$TRAINING_MODE" "$STAGE_RL_BACKEND"
     maybe_prepare_stage_datasets "$STAGE" "$STAGE_DATA_DIR" "$STAGE_RL_DATA_DIR"
     validate_stage_dataset_inputs "$STAGE" "$TRAINING_MODE" "$STAGE_RL_BACKEND" "$STAGE_DATA_DIR" "$STAGE_RL_DATA_DIR" "$STAGE_KEY"
 
@@ -1109,15 +1137,28 @@ for idx in "${!STAGES[@]}"; do
         COMPLETED_STAGES+=("$STAGE")
     fi
 
-    python3 - <<PY
+    COMPLETED_STAGES_BLOB=""
+    if [[ "${#COMPLETED_STAGES[@]}" -gt 0 ]]; then
+        printf -v COMPLETED_STAGES_BLOB '%s\n' "${COMPLETED_STAGES[@]}"
+    fi
+    env \
+        STATE_CURRENT_STAGE="$STAGE" \
+        STATE_CURRENT_MODEL="$STAGE_FINAL_MODEL" \
+        STATE_FILE_PATH="$STATE_FILE" \
+        COMPLETED_STAGES_BLOB="$COMPLETED_STAGES_BLOB" \
+        python3 - <<'PY'
 import json
+import os
 from pathlib import Path
+
 state = {
-    "current_stage": ${STAGE@Q},
-    "current_model": ${STAGE_FINAL_MODEL@Q},
-    "completed_stages": ${COMPLETED_STAGES[*]@Q}.split(),
+    "current_stage": os.environ["STATE_CURRENT_STAGE"],
+    "current_model": os.environ["STATE_CURRENT_MODEL"],
+    "completed_stages": [
+        line for line in os.environ.get("COMPLETED_STAGES_BLOB", "").splitlines() if line
+    ],
 }
-Path(${STATE_FILE@Q}).write_text(json.dumps(state, indent=2) + "\\n")
+Path(os.environ["STATE_FILE_PATH"]).write_text(json.dumps(state, indent=2) + "\n")
 PY
 done
 

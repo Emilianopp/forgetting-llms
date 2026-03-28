@@ -81,20 +81,23 @@ environment or a parquet-backed local stage, and what to check on disk.
 - `synthetic2_sft_verified`
   - Verified prompt/answer SFT parquet in repo-owned format.
   - SFT runs directly on `~/scratch/forgetting-llms/data/synthetic2_sft_verified_sf_sft`.
-  - RL uses dataset-dir GRPO after auto-conversion into RL parquet if needed.
+  - SFT is supported directly; RL remains legacy dataset-dir wiring and is
+    blocked by default because this repo is PRIME-RL only.
 - `dolci_think_sft_7b`
   - Prompt-style SFT parquet intended for DOLCI 7B thinking traces.
-  - Uses the dataset-dir RL backend after SFT-to-RL conversion.
+  - SFT is supported directly; RL remains legacy dataset-dir wiring and is
+    blocked by default because this repo is PRIME-RL only.
 - `dolci_think_sft_32b`
   - Prompt-style SFT parquet intended for DOLCI 32B thinking traces.
-  - Uses the dataset-dir RL backend after SFT-to-RL conversion.
+  - SFT is supported directly; RL remains legacy dataset-dir wiring and is
+    blocked by default because this repo is PRIME-RL only.
 - `tau2bench`
   - Parquet-backed custom/core training stage for Tau2Bench-style task trajectories.
-  - Treated as a local dataset-dir SFT/RL stage rather than a built-in PRIME environment.
+  - SFT is parquet-backed locally; RL does not have a PRIME environment in this repo yet.
   - Not the native Sierra `tau2-bench` environment.
   - Expects `~/scratch/forgetting-llms/data/tau2bench_sft` or `tau2bench_rl`.
   - The launcher can now auto-convert between `tau2bench_sft` and `tau2bench_rl`
-    when one side exists and the other is missing.
+    when one side exists and the other is missing, but the RL half is legacy-only.
 - `olmo_rl_zero_math`
   - Imported OLMo RL-Zero math parquet routed through the math reward path.
   - Treated as an RL-first dataset-dir stage and can auto-convert into SFT parquet.
@@ -704,7 +707,8 @@ For mixed RL-style training there are two repo-supported shapes:
 
 - built-in PRIME mixed or IID environments such as `mix_gsm8k_math` or
   `iid_gsm8k_math`
-- parquet-backed dataset-dir RL for custom/core datasets
+- legacy parquet-backed dataset-dir RL for custom/core datasets, only if you
+  intentionally re-enable it with `ALLOW_LEGACY_VERL=1`
 
 Built-in PRIME mixed example:
 
@@ -847,14 +851,19 @@ For the custom/core path, `run_training_plan.sh` now:
   `olmo_rl_zero_math`, `olmo_rl_zero_code`, `olmo_rl_zero_if`,
   `olmo_rl_zero_general`, `olmo_rl_zero_mix`, `olmo_instruct_rl`, and their
   `dolci_*` aliases when the SFT dir is missing
-- routes RL stages through `scripts/run_grpo_dataset_dir_local.sh` instead of
-  requiring a PRIME verifier environment
+- blocks dataset-dir RL by default because this repo treats PRIME-RL as the
+  only supported RL path
+- allows the old dataset-dir RL path only if you explicitly set
+  `ALLOW_LEGACY_VERL=1`
 
 Important caveat:
 
 - `tau2bench` in this repo is a parquet-backed training stage name. It is not
   the native Sierra `tau2-bench` environment. You still need a prepared
   `tau2bench_sft` or `tau2bench_rl` parquet dataset under scratch.
+- There is currently no PRIME-RL tau2bench environment wired in-repo, so
+  `tau2bench` is effectively SFT-only unless you intentionally re-enable the
+  legacy VeRL path.
 
 Built-in RL smoke test shape:
 
@@ -894,22 +903,18 @@ bash scripts/run_training_plan.sh \
   synthetic2_sft_verified
 ```
 
-Custom/core dataset-dir RL example:
+Custom/core SFT-only example:
 
 ```bash
 source ~/scratch/forgetting-llms/prime_rl_env.sh
 
-RL_TOTAL_EPOCHS=1 \
-RL_CKPT_INTERVAL=50 \
-PRIME_BATCH_SIZE=1 \
-PRIME_MAX_TOKENS=512 \
-PRIME_ROLLOUTS_PER_PROMPT=1 \
+SFT_MAX_STEPS=10 \
 WANDB_MODE=disabled \
 PRIME_WANDB_MODE=disabled \
 bash scripts/run_training_plan.sh \
-  rl individual \
+  sft individual \
   "$HOME/scratch/forgetting-llms/models/Qwen__Qwen3-1.7B" \
-  qwen17_tau2bench_rl \
+  qwen17_tau2bench_sft \
   tau2bench
 ```
 

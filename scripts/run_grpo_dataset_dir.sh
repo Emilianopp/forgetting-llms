@@ -57,6 +57,11 @@ ACTOR_LR=${ACTOR_LR:-1e-6}
 
 mkdir -p "$SAVE_DIR"
 
+if [[ ! -f "$DATA_DIR/train.parquet" ]]; then
+    echo "ERROR: Missing RL train parquet: $DATA_DIR/train.parquet" >&2
+    exit 1
+fi
+
 if [[ -f "$DATA_DIR/metadata.json" ]]; then
     REWARD_SUPPORT=$(python3 - "$DATA_DIR/metadata.json" <<'PY'
 import json

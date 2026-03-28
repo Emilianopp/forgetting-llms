@@ -11,6 +11,8 @@ fi
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/require_prime_only.sh"
 
 DATA_LABEL="${1:?Usage: $0 <data_label> <data_dir> <model_path> <experiment_name>}"
 DATA_DIR="${2:?Usage: $0 <data_label> <data_dir> <model_path> <experiment_name>}"
