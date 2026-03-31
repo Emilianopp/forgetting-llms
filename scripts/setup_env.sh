@@ -19,12 +19,13 @@ source "$SCRIPT_DIR/load_hf_auth.sh"
 # Load modules (Mila)
 module load python/3.10
 
-VENV_DIR="${VENV_DIR:-$HOME/scratch/forgetting-llms/.venv}"
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+VENV_DIR="${VENV_DIR:-$DEFAULT_SCRATCH_HOME/forgetting-llms/.venv}"
 USE_UV="${USE_UV:-auto}"
 REBUILD="${REBUILD:-0}"
 VENV_COPIES="${VENV_COPIES:-0}"
 FORCE_REINSTALL_CORE="${FORCE_REINSTALL_CORE:-0}"
-SCRATCH_ROOT="${SCRATCH_ROOT:-$HOME/scratch}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-$DEFAULT_SCRATCH_HOME}"
 PYTHON_BIN="${PYTHON_BIN:-$(command -v python)}"
 
 if [[ "$VENV_DIR" != "$SCRATCH_ROOT"/* ]]; then
@@ -33,19 +34,19 @@ if [[ "$VENV_DIR" != "$SCRATCH_ROOT"/* ]]; then
     exit 1
 fi
 
-export HF_HOME="${HF_HOME:-$HOME/scratch/huggingface}"
+export HF_HOME="${HF_HOME:-$DEFAULT_SCRATCH_HOME/huggingface}"
 export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-$HF_HOME/datasets}"
 export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
-export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$HOME/scratch/.cache/pip}"
-export UV_CACHE_DIR="${UV_CACHE_DIR:-$HOME/scratch/.cache/uv}"
-export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/scratch/.cache}"
-export TORCH_HOME="${TORCH_HOME:-$HOME/scratch/.cache/torch}"
-export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$HOME/scratch/.cache/triton}"
-export TMPDIR="${TMPDIR:-$HOME/scratch/tmp}"
+export PIP_CACHE_DIR="${PIP_CACHE_DIR:-$DEFAULT_SCRATCH_HOME/.cache/pip}"
+export UV_CACHE_DIR="${UV_CACHE_DIR:-$DEFAULT_SCRATCH_HOME/.cache/uv}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$DEFAULT_SCRATCH_HOME/.cache}"
+export TORCH_HOME="${TORCH_HOME:-$DEFAULT_SCRATCH_HOME/.cache/torch}"
+export TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-$DEFAULT_SCRATCH_HOME/.cache/triton}"
+export TMPDIR="${TMPDIR:-$DEFAULT_SCRATCH_HOME/tmp}"
 export TMP="${TMP:-$TMPDIR}"
 export TEMP="${TEMP:-$TMPDIR}"
-export WANDB_DIR="${WANDB_DIR:-$HOME/scratch/forgetting-llms/wandb}"
-export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$HOME/scratch/forgetting-llms/wandb_cache}"
+export WANDB_DIR="${WANDB_DIR:-$DEFAULT_SCRATCH_HOME/forgetting-llms/wandb}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$DEFAULT_SCRATCH_HOME/forgetting-llms/wandb_cache}"
 
 mkdir -p \
     "$(dirname "$VENV_DIR")" \
@@ -130,6 +131,7 @@ fi
 
 # Core dependencies
 "${INSTALL_CMD[@]}" --upgrade pip setuptools wheel
+"${INSTALL_CMD[@]}" uv
 "${INSTALL_CMD[@]}" torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 "${INSTALL_CMD[@]}" "${REINSTALL_FLAGS[@]}" transformers datasets accelerate pandas pyarrow huggingface_hub
 "${INSTALL_CMD[@]}" wandb

@@ -15,7 +15,7 @@ Exports one requirements snapshot per detected environment into:
   ./requirements-locks
 
 Environment knobs:
-  SCRATCH_ROOT=~/scratch/forgetting-llms
+  SCRATCH_ROOT=$SCRATCH/forgetting-llms
   OUTPUT_DIR=./requirements-locks
   INCLUDE_BENCHMARK_VENVS=1
   INCLUDE_PRIME_RL=1
@@ -35,7 +35,8 @@ fi
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 
-SCRATCH_ROOT="${SCRATCH_ROOT:-$HOME/scratch/forgetting-llms}"
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-$DEFAULT_SCRATCH_HOME/forgetting-llms}"
 OUTPUT_DIR="${OUTPUT_DIR:-$REPO_DIR/requirements-locks}"
 INCLUDE_BENCHMARK_VENVS="${INCLUDE_BENCHMARK_VENVS:-1}"
 INCLUDE_PRIME_RL="${INCLUDE_PRIME_RL:-1}"

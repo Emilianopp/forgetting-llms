@@ -32,14 +32,16 @@ EXPERIMENT_NAME=${3:?Usage: run_sft.sh <dataset> <model> <experiment_name> <data
 DATA_VARIANT=${4:?Usage: run_sft.sh <dataset> <model> <experiment_name> <data_variant>}
 
 module load python/3.10 >/dev/null 2>&1 || true
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+DEFAULT_SCRATCH_ROOT="${DEFAULT_SCRATCH_HOME}/forgetting-llms"
 if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
     :
 elif [[ -n "${VENV_DIR:-}" && -x "$VENV_DIR/bin/python" ]]; then
     # shellcheck disable=SC1090
     source "$VENV_DIR/bin/activate"
-elif [[ -f "$HOME/scratch/forgetting-llms/.venv/bin/activate" ]]; then
+elif [[ -f "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1091
-    source "$HOME/scratch/forgetting-llms/.venv/bin/activate"
+    source "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate"
 elif [[ -f "$REPO_DIR/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1090
     source "$REPO_DIR/.venv/bin/activate"
@@ -48,10 +50,10 @@ else
     source "$HOME/envs/forgetting/bin/activate"
 fi
 
-export HF_HOME="${HF_HOME:-$HOME/scratch/huggingface}"
+export HF_HOME="${HF_HOME:-$DEFAULT_SCRATCH_HOME/huggingface}"
 export PYTHONUNBUFFERED=1
-export WANDB_DIR="${WANDB_DIR:-$HOME/scratch/forgetting-llms/wandb/${EXPERIMENT_NAME}}"
-export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$HOME/scratch/forgetting-llms/wandb_cache/${EXPERIMENT_NAME}}"
+export WANDB_DIR="${WANDB_DIR:-$DEFAULT_SCRATCH_ROOT/wandb/${EXPERIMENT_NAME}}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$DEFAULT_SCRATCH_ROOT/wandb_cache/${EXPERIMENT_NAME}}"
 unset ROCR_VISIBLE_DEVICES
 
 if [[ -n "${TRAIN_CUDA_VISIBLE_DEVICES:-}" ]]; then
@@ -59,15 +61,15 @@ if [[ -n "${TRAIN_CUDA_VISIBLE_DEVICES:-}" ]]; then
 fi
 
 case "$DATA_VARIANT" in
-    gt) DATA_DIR="${DATA_DIR:-$HOME/scratch/forgetting-llms/data/${DATASET}_sft}" ;;
-    sf) DATA_DIR="${DATA_DIR:-$HOME/scratch/forgetting-llms/data/${DATASET}_sf_sft}" ;;
-    cf) DATA_DIR="${DATA_DIR:-$HOME/scratch/forgetting-llms/data/${DATASET}_cf_sft}" ;;
+    gt) DATA_DIR="${DATA_DIR:-$DEFAULT_SCRATCH_ROOT/data/${DATASET}_sft}" ;;
+    sf) DATA_DIR="${DATA_DIR:-$DEFAULT_SCRATCH_ROOT/data/${DATASET}_sf_sft}" ;;
+    cf) DATA_DIR="${DATA_DIR:-$DEFAULT_SCRATCH_ROOT/data/${DATASET}_cf_sft}" ;;
     *)  echo "ERROR: Unknown data variant '$DATA_VARIANT'. Use gt, sf, or cf." >&2; exit 1 ;;
 esac
 
 TRAIN_FILE="${TRAIN_FILE:-$DATA_DIR/train.parquet}"
 EVAL_FILE="${EVAL_FILE:-$DATA_DIR/test.parquet}"
-SAVE_DIR="${SAVE_DIR:-$HOME/scratch/forgetting-llms/checkpoints/${EXPERIMENT_NAME}}"
+SAVE_DIR="${SAVE_DIR:-$DEFAULT_SCRATCH_ROOT/checkpoints/${EXPERIMENT_NAME}}"
 
 case "$DATASET" in
     gsm8k) DEFAULT_MAX_LENGTH=2304 ;;
@@ -108,7 +110,7 @@ LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 QUESTION_FIELD="${QUESTION_FIELD:-extra_info.question}"
 ANSWER_FIELD="${ANSWER_FIELD:-extra_info.answer}"
 CHECKPOINT_MIRROR_ROOT="${CHECKPOINT_MIRROR_ROOT:-}"
-CHECKPOINT_MIRROR_SOURCE_BASE="${CHECKPOINT_MIRROR_SOURCE_BASE:-$HOME/scratch/forgetting-llms}"
+CHECKPOINT_MIRROR_SOURCE_BASE="${CHECKPOINT_MIRROR_SOURCE_BASE:-$DEFAULT_SCRATCH_ROOT}"
 CHECKPOINT_MIRROR_POLL_SECS="${CHECKPOINT_MIRROR_POLL_SECS:-300}"
 CHECKPOINT_MIRROR_PRUNE_DEST="${CHECKPOINT_MIRROR_PRUNE_DEST:-0}"
 CHECKPOINT_MIRROR_STOP_FILE=""

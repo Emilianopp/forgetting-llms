@@ -42,6 +42,7 @@ Environment knobs:
   RL_CKPT_INTERVAL=300            PRIME checkpoint interval for stage-end evals
   PRIME_NO_AUTO_RESUME=1          Disable PRIME auto-resume from an existing run dir
   TAU2BENCH_SMOKE_BOOTSTRAP=1     Create a tiny tau2bench smoke parquet if no tau2bench data exists
+  TAU2BENCH_PRIME_ENV_NAME=primeintellect/tau2-bench  Override the PRIME-RL hub environment id for tau2bench
   TRAIN_CUDA_VISIBLE_DEVICES=0,1,2  Optional GPU list reserved for training
   ASYNC_EVAL_GPU=3                Optional dedicated GPU for async checkpoint eval
   ASYNC_EVAL_POLL_SECS=60         Poll interval for async eval watcher
@@ -51,7 +52,7 @@ Environment knobs:
   RUN_TASK_EVALS=1                Run local task/backward pass@k evals after each stage
   EVAL_CONTINUE_ON_ERROR=0        Fail fast on benchmark/task eval errors
   CHECKPOINT_MIRROR_ROOT=...      Optional backup root: local path, rclone remote like gdrive:forgetting-llms-backups, or hf:model:<user>/<repo>
-  CHECKPOINT_MIRROR_SOURCE_BASE=~/scratch/forgetting-llms
+  CHECKPOINT_MIRROR_SOURCE_BASE=\$SCRATCH/forgetting-llms
   CHECKPOINT_MIRROR_POLL_SECS=300
   CHECKPOINT_MIRROR_PRUNE_DEST=0
   TASK_PASS_K=512                 Rollouts per prompt for local task evals
@@ -80,7 +81,7 @@ Global task-eval policy:
   TASK_EVAL_REVERSE=0            Reverse local task eval order
 
 Small Qwen RL smoke test:
-  export SMALL_QWEN_MODEL="$HOME/scratch/forgetting-llms/models/Qwen__Qwen3-0.6B"
+  export SMALL_QWEN_MODEL="\${SCRATCH:-\$HOME/scratch}/forgetting-llms/models/Qwen__Qwen3-0.6B"
   bash scripts/run_training_plan.sh rl individual "$SMALL_QWEN_MODEL" qwen06_rl_smoke gsm8k
 EOF
 }
@@ -116,23 +117,25 @@ REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 source "$SCRIPT_DIR/load_hf_auth.sh"
 
 module load python/3.10 >/dev/null 2>&1 || true
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+DEFAULT_SCRATCH_ROOT="${DEFAULT_SCRATCH_HOME}/forgetting-llms"
 if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
     :
 elif [[ -n "${VENV_DIR:-}" && -x "$VENV_DIR/bin/python" ]]; then
     # shellcheck disable=SC1090
     source "$VENV_DIR/bin/activate"
-elif [[ -f "$HOME/scratch/forgetting-llms/.venv/bin/activate" ]]; then
+elif [[ -f "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1091
-    source "$HOME/scratch/forgetting-llms/.venv/bin/activate"
+    source "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate"
 elif [[ -f "$REPO_DIR/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1090
     source "$REPO_DIR/.venv/bin/activate"
 fi
-if [[ -d "$HOME/scratch/forgetting-llms/bin" ]]; then
-    export PATH="$HOME/scratch/forgetting-llms/bin:$PATH"
+if [[ -d "$DEFAULT_SCRATCH_ROOT/bin" ]]; then
+    export PATH="$DEFAULT_SCRATCH_ROOT/bin:$PATH"
 fi
 
-SCRATCH_ROOT="${SCRATCH_ROOT:-$HOME/scratch/forgetting-llms}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-$DEFAULT_SCRATCH_ROOT}"
 CHECKPOINT_ROOT="${CHECKPOINT_ROOT:-$SCRATCH_ROOT/checkpoints}"
 PRIME_RUNS_ROOT="${PRIME_RUNS_ROOT:-$SCRATCH_ROOT/prime_runs}"
 RUNS_ROOT="${RUNS_ROOT:-$SCRATCH_ROOT/runs}"
@@ -152,7 +155,7 @@ if [[ -f "$PRIME_RUNTIME_ENV_FILE" ]]; then
 fi
 PRIME_RL_ROOT="${PRIME_RL_ROOT:-$SCRATCH_ROOT/vendor/prime-rl}"
 PRIME_COMMAND="${PRIME_COMMAND:-uv --project $PRIME_RL_ROOT run rl}"
-HF_HOME="${HF_HOME:-$HOME/scratch/huggingface}"
+HF_HOME="${HF_HOME:-$DEFAULT_SCRATCH_HOME/huggingface}"
 
 if [[ -f "$BENCHMARK_ENV_FILE" ]]; then
     # shellcheck disable=SC1090
@@ -372,7 +375,7 @@ default_rl_backend_for_name() {
         return 0
     fi
     case "$1" in
-        synthetic2_sft_verified|dolci_think_sft_7b|dolci_think_sft_32b|tau2bench)
+        synthetic2_sft_verified|dolci_think_sft_7b|dolci_think_sft_32b)
             echo "dataset_dir"
             ;;
         *)
@@ -404,6 +407,13 @@ default_rl_data_source_for_name() {
     fi
     case "$1" in
         tau2bench) echo "tau2bench" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+default_prime_environment_name_for_name() {
+    case "$1" in
+        tau2bench) echo "${TAU2BENCH_PRIME_ENV_NAME:-primeintellect/tau2-bench}" ;;
         *) echo "$1" ;;
     esac
 }
@@ -517,10 +527,8 @@ validate_prime_only_rl_backend() {
     echo "ERROR: Stage '$stage_name' resolves to legacy VeRL dataset-dir RL, but this repo is PRIME-RL only." >&2
     echo "Set ALLOW_LEGACY_VERL=1 only if you intentionally want the old path for archaeology." >&2
     if [[ "$stage_name" == "tau2bench" ]]; then
-        echo "tau2bench does not have a PRIME-RL environment wired in this repo yet." >&2
-        echo "Right now the supported options are:" >&2
-        echo "  - run tau2bench as SFT-only" >&2
-        echo "  - add a PRIME tau2bench environment/config and set STAGE_RL_BACKEND_TAU2BENCH=prime" >&2
+        echo "tau2bench now defaults to PRIME-RL via STAGE_ENV_TAU2BENCH=${TAU2BENCH_PRIME_ENV_NAME:-primeintellect/tau2-bench}." >&2
+        echo "If you want the supported path, keep the PRIME backend and make sure that hub environment is installed in the PRIME runtime." >&2
     fi
     exit 1
 }
@@ -782,7 +790,7 @@ run_prime_stage() {
     local orchestrator_var="STAGE_ORCHESTRATOR_CONFIG_${dataset_key}"
     local inference_var="STAGE_INFERENCE_CONFIG_${dataset_key}"
 
-    local environment_name="${!env_var:-$dataset}"
+    local environment_name="${!env_var:-$(default_prime_environment_name_for_name "$dataset")}"
     local combined_cfg="${!combined_var:-}"
     local trainer_cfg="${!trainer_var:-}"
     local orchestrator_cfg="${!orchestrator_var:-}"

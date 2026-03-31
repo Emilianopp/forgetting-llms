@@ -1,7 +1,7 @@
 # Current Success
 
 This file records the main workflows implemented in this chat, what they do,
-and how to run them on Mila.
+and how to run them on Mila or Alliance / Compute Canada.
 
 It is a practical runbook, not a full design document.
 
@@ -34,6 +34,43 @@ Storage convention:
 - data: `~/scratch/forgetting-llms/data`
 - checkpoints: `~/scratch/forgetting-llms/checkpoints`
 - benchmark outputs: `~/scratch/forgetting-llms/benchmark_plan_evals`
+
+## Baseline Alliance / Compute Canada Setup
+
+Repo:
+
+```bash
+cd ~/forget
+```
+
+One-shot setup:
+
+```bash
+bash scripts/setup_alliance.sh
+```
+
+Manual activation after setup:
+
+```bash
+module load python/3.10
+source "$SCRATCH/forgetting-llms/.venv/bin/activate"
+source "$SCRATCH/forgetting-llms/prime_rl_env.sh"
+```
+
+Optional auth and benchmark env:
+
+```bash
+source scripts/load_hf_auth.sh
+source "$SCRATCH/forgetting-llms/benchmark_env.sh"
+```
+
+Storage convention:
+
+- repo and scripts: `~/forget`
+- env: `$SCRATCH/forgetting-llms/.venv`
+- data: `$SCRATCH/forgetting-llms/data`
+- checkpoints: `$SCRATCH/forgetting-llms/checkpoints`
+- benchmark outputs: `$SCRATCH/forgetting-llms/benchmark_plan_evals`
 
 ## Successful Workflow Shapes
 
@@ -93,11 +130,13 @@ environment or a parquet-backed local stage, and what to check on disk.
     blocked by default because this repo is PRIME-RL only.
 - `tau2bench`
   - Parquet-backed custom/core training stage for Tau2Bench-style task trajectories.
-  - SFT is parquet-backed locally; RL does not have a PRIME environment in this repo yet.
+  - SFT is parquet-backed locally.
+  - RL now defaults to PRIME-RL using the Environment Hub tau2-bench environment id
+    `primeintellect/tau2-bench` unless you override `STAGE_ENV_TAU2BENCH`.
   - Not the native Sierra `tau2-bench` environment.
   - Expects `~/scratch/forgetting-llms/data/tau2bench_sft` or `tau2bench_rl`.
   - The launcher can now auto-convert between `tau2bench_sft` and `tau2bench_rl`
-    when one side exists and the other is missing, but the RL half is legacy-only.
+    when one side exists and the other is missing for the local parquet path.
 - `olmo_rl_zero_math`
   - Imported OLMo RL-Zero math parquet routed through the math reward path.
   - Treated as an RL-first dataset-dir stage and can auto-convert into SFT parquet.
@@ -861,9 +900,9 @@ Important caveat:
 - `tau2bench` in this repo is a parquet-backed training stage name. It is not
   the native Sierra `tau2-bench` environment. You still need a prepared
   `tau2bench_sft` or `tau2bench_rl` parquet dataset under scratch.
-- There is currently no PRIME-RL tau2bench environment wired in-repo, so
-  `tau2bench` is effectively SFT-only unless you intentionally re-enable the
-  legacy VeRL path.
+- `tau2bench` now defaults to PRIME-RL for the RL half, using
+  `primeintellect/tau2-bench`. Make sure that environment is installed in the
+  PRIME runtime before launching RL.
 
 Built-in RL smoke test shape:
 

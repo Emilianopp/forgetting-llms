@@ -22,22 +22,44 @@ The repo can stay in home, for example:
 
 Large artifacts should stay in scratch:
 
-- env: `~/scratch/forgetting-llms/.venv`
-- model snapshots: `~/scratch/forgetting-llms/models`
-- datasets: `~/scratch/forgetting-llms/data`
-- caches: `~/scratch/.cache`, `~/scratch/huggingface`
-- temp files: `~/scratch/tmp`
-- WandB local files: `~/scratch/forgetting-llms/wandb`
+- Mila examples below use `~/scratch/...`
+- Alliance / Compute Canada should use `$SCRATCH/...`
+- env: `<scratch>/forgetting-llms/.venv`
+- model snapshots: `<scratch>/forgetting-llms/models`
+- datasets: `<scratch>/forgetting-llms/data`
+- caches: `<scratch>/.cache`, `<scratch>/huggingface`
+- temp files: `<scratch>/tmp`
+- WandB local files: `<scratch>/forgetting-llms/wandb`
 
 ## Environment Setup
 
 Package installation is defined in [scripts/setup_env.sh](/Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/setup_env.sh). There is no separate `requirements.txt`.
 
+Cluster-specific wrappers:
+
+- Mila: [scripts/setup_mila.sh](/Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/setup_mila.sh)
+- Alliance / Compute Canada: [scripts/setup_alliance.sh](/Users/danemalenfant/PycharmProjects/forgetting-llms/scripts/setup_alliance.sh)
+
+Those wrappers run the main env setup and PRIME-RL setup back to back and keep
+their scratch roots separate.
+
 Legacy VeRL training scripts in `scripts/run_grpo_*`, `scripts/run_sft.sh`, and
 related wrappers are intentionally disabled by default. The supported RL path is
 PRIME-RL only.
 
-On Mila, start from a clean shell and load the cluster Python first:
+On Mila, the shortest path is:
+
+```bash
+bash scripts/setup_mila.sh
+```
+
+On Alliance / Compute Canada, use:
+
+```bash
+bash scripts/setup_alliance.sh
+```
+
+If you want the manual path instead, on Mila start from a clean shell and load the cluster Python first:
 
 ```bash
 module purge
@@ -96,6 +118,9 @@ Expected:
 - Python `3.10.x`
 - `VIRTUAL_ENV` under `~/scratch/forgetting-llms/.venv`
 - the import check prints `ok`
+
+Most command examples below still show Mila-style `~/scratch/...` paths. On
+Alliance, replace those with `$SCRATCH/...`.
 
 ## Model Snapshots
 

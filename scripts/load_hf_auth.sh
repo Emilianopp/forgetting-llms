@@ -8,14 +8,16 @@ export _FORGETTING_LLMS_HF_AUTH_LOADED=1
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+DEFAULT_APP_ROOT="${DEFAULT_SCRATCH_HOME}/forgetting-llms"
 
-export HF_HOME="${HF_HOME:-$HOME/scratch/huggingface}"
+export HF_HOME="${HF_HOME:-$DEFAULT_SCRATCH_HOME/huggingface}"
 export HF_TOKEN_PATH="${HF_TOKEN_PATH:-$HF_HOME/token}"
 if [[ -z "${HF_AUTH_ENV_FILE:-}" ]]; then
     if [[ -f "$REPO_DIR/.hf_auth.sh" ]]; then
         export HF_AUTH_ENV_FILE="$REPO_DIR/.hf_auth.sh"
     else
-        export HF_AUTH_ENV_FILE="$HOME/scratch/forgetting-llms/hf_auth.sh"
+        export HF_AUTH_ENV_FILE="$DEFAULT_APP_ROOT/hf_auth.sh"
     fi
 fi
 

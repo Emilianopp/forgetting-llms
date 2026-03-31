@@ -12,7 +12,7 @@ Usage:
   bash scripts/setup_runner_venvs.sh [runner...]
 
 Creates one virtualenv per benchmark runner under:
-  ~/scratch/forgetting-llms/.venvs
+  $SCRATCH/forgetting-llms/.venvs
 
 Supported runners:
   lighteval  evalplus  labbench  safety  bfcl  rg_mix
@@ -21,17 +21,17 @@ If no runners are supplied, installs:
   lighteval evalplus labbench
 
 This script also updates:
-  ~/scratch/forgetting-llms/benchmark_env.sh
+  $SCRATCH/forgetting-llms/benchmark_env.sh
 
 so run_eval.py can activate each runner's env automatically.
 
 Environment knobs:
-  SCRATCH_ROOT=~/scratch/forgetting-llms
-  VENV_ROOT=~/scratch/forgetting-llms/.venvs
-  BENCHMARK_ENV_FILE=~/scratch/forgetting-llms/benchmark_env.sh
-  LABBENCH_REPO_ROOT=~/scratch/LAB-Bench
-  SAFETY_EVAL_ROOT=~/scratch/safety-eval
-  BFCL_ROOT=~/scratch/gorilla/berkeley-function-call-leaderboard
+  SCRATCH_ROOT=$SCRATCH/forgetting-llms
+  VENV_ROOT=$SCRATCH/forgetting-llms/.venvs
+  BENCHMARK_ENV_FILE=$SCRATCH/forgetting-llms/benchmark_env.sh
+  LABBENCH_REPO_ROOT=$SCRATCH/LAB-Bench
+  SAFETY_EVAL_ROOT=$SCRATCH/safety-eval
+  BFCL_ROOT=$SCRATCH/gorilla/berkeley-function-call-leaderboard
   RG_MIX_ROOT=...   Optional rg_mix_env checkout; auto-detected if present
 EOF
 }
@@ -43,12 +43,13 @@ fi
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-SCRATCH_ROOT="${SCRATCH_ROOT:-$HOME/scratch/forgetting-llms}"
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-$DEFAULT_SCRATCH_HOME/forgetting-llms}"
 VENV_ROOT="${VENV_ROOT:-$SCRATCH_ROOT/.venvs}"
 BENCHMARK_ENV_FILE="${BENCHMARK_ENV_FILE:-$SCRATCH_ROOT/benchmark_env.sh}"
-LABBENCH_REPO_ROOT="${LABBENCH_REPO_ROOT:-$HOME/scratch/LAB-Bench}"
-SAFETY_EVAL_ROOT="${SAFETY_EVAL_ROOT:-$HOME/scratch/safety-eval}"
-BFCL_ROOT="${BFCL_ROOT:-$HOME/scratch/gorilla/berkeley-function-call-leaderboard}"
+LABBENCH_REPO_ROOT="${LABBENCH_REPO_ROOT:-$DEFAULT_SCRATCH_HOME/LAB-Bench}"
+SAFETY_EVAL_ROOT="${SAFETY_EVAL_ROOT:-$DEFAULT_SCRATCH_HOME/safety-eval}"
+BFCL_ROOT="${BFCL_ROOT:-$DEFAULT_SCRATCH_HOME/gorilla/berkeley-function-call-leaderboard}"
 DEFAULT_RG_MIX_ROOT=""
 if [[ -f "$SCRIPT_DIR/../environments/rg_mix_env/rg_mix_env.py" ]]; then
     DEFAULT_RG_MIX_ROOT="$SCRIPT_DIR/../environments/rg_mix_env"

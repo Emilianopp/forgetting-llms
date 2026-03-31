@@ -49,14 +49,16 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 
 module load python/3.10 >/dev/null 2>&1 || true
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+DEFAULT_SCRATCH_ROOT="${DEFAULT_SCRATCH_HOME}/forgetting-llms"
 if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
     :
 elif [[ -n "${VENV_DIR:-}" && -x "$VENV_DIR/bin/python" ]]; then
     # shellcheck disable=SC1090
     source "$VENV_DIR/bin/activate"
-elif [[ -f "$HOME/scratch/forgetting-llms/.venv/bin/activate" ]]; then
+elif [[ -f "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1091
-    source "$HOME/scratch/forgetting-llms/.venv/bin/activate"
+    source "$DEFAULT_SCRATCH_ROOT/.venv/bin/activate"
 elif [[ -f "$REPO_DIR/.venv/bin/activate" ]]; then
     # shellcheck disable=SC1090
     source "$REPO_DIR/.venv/bin/activate"

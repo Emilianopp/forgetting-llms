@@ -33,7 +33,7 @@ Environment knobs:
   EVAL_SERVER_MAX_NUM_BATCHED_TOKENS=4096
   EVAL_SERVER_STARTUP_TIMEOUT=600
   EVAL_SERVER_API_KEY=EMPTY
-  NLTK_DATA=~/scratch/forgetting-llms/nltk_data
+  NLTK_DATA=$SCRATCH/forgetting-llms/nltk_data
 EOF
 }
 
@@ -53,12 +53,14 @@ REPO_DIR=$(cd "$SCRIPT_DIR/.." && pwd)
 
 # shellcheck disable=SC1090
 source "$SCRIPT_DIR/load_hf_auth.sh"
+DEFAULT_SCRATCH_HOME="${SCRATCH:-$HOME/scratch}"
+DEFAULT_APP_ROOT="${DEFAULT_SCRATCH_HOME}/forgetting-llms"
 
 if [[ -z "${BENCHMARK_ENV_FILE:-}" ]]; then
     if [[ -f "$REPO_DIR/benchmark_env.sh" ]]; then
         BENCHMARK_ENV_FILE="$REPO_DIR/benchmark_env.sh"
     else
-        BENCHMARK_ENV_FILE="$HOME/scratch/forgetting-llms/benchmark_env.sh"
+        BENCHMARK_ENV_FILE="$DEFAULT_APP_ROOT/benchmark_env.sh"
     fi
 fi
 if [[ -f "$BENCHMARK_ENV_FILE" ]]; then
@@ -66,7 +68,8 @@ if [[ -f "$BENCHMARK_ENV_FILE" ]]; then
     source "$BENCHMARK_ENV_FILE"
 fi
 
-SCRATCH_ROOT="${SCRATCH_ROOT:-$HOME/scratch}"
+SCRATCH_ROOT="${SCRATCH_ROOT:-$DEFAULT_SCRATCH_HOME}"
+APP_ROOT="${APP_ROOT:-$DEFAULT_APP_ROOT}"
 export HF_HOME="${HF_HOME:-$SCRATCH_ROOT/huggingface}"
 export HF_DATASETS_CACHE="${HF_DATASETS_CACHE:-$HF_HOME/datasets}"
 export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
@@ -82,9 +85,9 @@ export MPLCONFIGDIR="${MPLCONFIGDIR:-$SCRATCH_ROOT/.cache/matplotlib}"
 export TMPDIR="${TMPDIR:-$SCRATCH_ROOT/tmp}"
 export TMP="${TMP:-$TMPDIR}"
 export TEMP="${TEMP:-$TMPDIR}"
-export WANDB_DIR="${WANDB_DIR:-$SCRATCH_ROOT/forgetting-llms/wandb}"
-export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$SCRATCH_ROOT/forgetting-llms/wandb_cache}"
-export NLTK_DATA="${NLTK_DATA:-$SCRATCH_ROOT/forgetting-llms/nltk_data}"
+export WANDB_DIR="${WANDB_DIR:-$APP_ROOT/wandb}"
+export WANDB_CACHE_DIR="${WANDB_CACHE_DIR:-$APP_ROOT/wandb_cache}"
+export NLTK_DATA="${NLTK_DATA:-$APP_ROOT/nltk_data}"
 
 mkdir -p \
     "$HF_HOME" \
@@ -276,7 +279,7 @@ PY
 }
 
 ensure_nltk_tokenizers() {
-    export NLTK_DATA="${NLTK_DATA:-$HOME/scratch/forgetting-llms/nltk_data}"
+    export NLTK_DATA="${NLTK_DATA:-$APP_ROOT/nltk_data}"
     if has_nltk_resource "tokenizers/punkt" && has_nltk_resource "tokenizers/punkt_tab"; then
         return 0
     fi
